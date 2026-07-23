@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NetFilla - Premium Cinematic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.cdnfonts.com/css/akira-expanded');
+
+        :root { --primary-red: #E50914; --bg-black: #000000; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Outfit', sans-serif; background-color: var(--bg-black); color: #ffffff; overflow: hidden; -webkit-font-smoothing: antialiased; }
+        
+        .font-akira { font-family: 'Akira Expanded', sans-serif; letter-spacing: 1px; }
+
+        ::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        * { -webkit-tap-highlight-color: transparent; }
+        
+        #main-app { display: flex; flex-direction: column; width: 100%; height: 100dvh; position: relative; }
+        
+        .app-view { display: none; flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-top: 80px; padding-bottom: 100px; width: 100%; height: 100%; }
+        .app-view.active { display: block; animation: fadeInView 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        /* iOS Glass Morphism */
+        .ios-glass { background: rgba(20, 20, 20, 0.65); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+        .ios-glass-heavy { background: rgba(10, 10, 10, 0.85); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .ios-glass-light { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.15); }
+        
+        /* TV Overscan Margin Adjustments */
+        @media (min-width: 1024px) { body.tv-mode { padding: 2% 3%; } }
+        
+        .pt-safe { padding-top: env(safe-area-inset-top, 15px); } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        
+        .movie-card { position: relative; border-radius: 8px; overflow: hidden; background: #1a1a1a; transition: transform 0.25s cubic-bezier(0.33, 1, 0.68, 1), box-shadow 0.25s ease, filter 0.25s ease; }
+        .movie-card:active { transform: scale(0.92); filter: brightness(0.7); }
+        
+        .nav-item { transition: all 0.3s ease; cursor: pointer; color: #888; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 20%; font-size: 10px; font-weight: 600; }
+        .nav-item.active { color: #fff; transform: translateY(-2px); }
+        
+        .auth-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; padding: 18px 20px; width: 100%; outline: none; transition: all 0.3s ease; backdrop-filter: blur(10px); }
+        .auth-input:focus { background: rgba(255,255,255,0.1); border-color: var(--primary-red); box-shadow: 0 0 15px rgba(229,9,20,0.2); }
+        
+        @keyframes fadeInView { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .text-stroke-number { font-size: 140px; font-weight: 900; line-height: 0.8; color: transparent; -webkit-text-stroke: 2px rgba(255,255,255,0.3); letter-spacing: -5px; font-family: 'Arial Black', Impact, sans-serif; position: absolute; left: -25px; bottom: -5px; z-index: 0; text-shadow: 4px 4px 15px rgba(0,0,0,0.8); }
+        .top-10-img-wrapper { z-index: 10; margin-left: 45px; position: relative; }
+
+        .detail-tab { position: relative; color: #a3a3a3; padding-bottom: 12px; font-weight: 800; transition: color 0.3s; font-size: 14px; white-space: nowrap; }
+        .detail-tab.active { color: #ffffff; }
+        .detail-tab.active::after { content: ''; position: absolute; top: -14px; left: 0; width: 100%; height: 4px; background-color: #E50914; border-radius: 0 0 4px 4px; }
+        
+        #global-loader { transition: opacity 0.5s; }
+        .profile-bg-gradient { background: radial-gradient(circle at top, #4a0d1b 0%, #000000 60%); }
+
+        /* SPATIAL NAVIGATION STYLES */
+        .data-focusable { outline: none; transition: transform 0.25s cubic-bezier(0.33, 1, 0.68, 1), box-shadow 0.25s ease, filter 0.25s ease; cursor: pointer; }
+        .tv-focused { transform: scale(1.08) !important; box-shadow: 0 0 0 4px var(--primary-red), 0 20px 40px rgba(0,0,0,0.8) !important; z-index: 60 !important; border-color: transparent !important; }
+        input.tv-focused { transform: scale(1.02) !important; background: rgba(255,255,255,0.15) !important; }
+        .nav-item.tv-focused, .detail-tab.tv-focused, .header-btn.tv-focused { transform: scale(1.15) !important; color: white !important; box-shadow: none !important; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .overflow-x-auto { padding-top: 10px; padding-bottom: 15px; margin-top: -10px; margin-bottom: -15px; scroll-padding-left: 20px; }
+    </style>
+</head>
+<body class="tv-mode">
+    <!-- GLOBAL LOADING OVERLAY -->
+    <div id="global-loader" class="fixed inset-0 z-[1000] bg-black flex flex-col items-center justify-center">
+        <h1 class="text-5xl font-black text-[#E50914] mb-4 tracking-tighter animate-pulse">NetFilla</h1>
+        <div class="w-8 h-8 border-4 border-[#E50914] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <!-- INTRO SCREEN -->
+    <div id="intro-screen" class="hidden fixed inset-0 z-[100] flex-col items-center justify-center bg-[#000]">
+        <h1 class="text-6xl md:text-8xl font-black text-[#E50914] mb-8 tracking-tighter drop-shadow-[0_0_30px_rgba(229,9,20,0.5)]">NetFilla</h1>
+        <button id="enter-btn" data-focusable="true" onclick="window.startApp()" class="ios-glass-light px-10 py-4 text-white font-bold rounded-2xl text-lg hover:bg-white/20 active:scale-95 transition-all">Get Started</button>
+    </div>
+    
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="hidden fixed inset-0 z-[90] bg-black flex-col justify-center px-8 relative">
+        <div class="absolute inset-0 bg-gradient-to-br from-[#E50914]/20 to-black/0 pointer-events-none"></div>
+        <div class="relative z-10 w-full max-w-md mx-auto">
+            <h2 id="auth-title" class="text-4xl font-black mb-2 text-white tracking-tight">Sign In</h2>
+            <p class="text-gray-400 mb-8 text-sm font-medium">Welcome to the premium experience.</p>
+            <form id="auth-form" class="flex flex-col gap-4">
+                <input type="text" id="auth-username" data-focusable="true" placeholder="Unique Username" class="auth-input hidden font-akira text-[10px]">
+                <input type="email" id="auth-email" data-focusable="true" placeholder="Email Address" class="auth-input" required>
+                <input type="password" id="auth-password" data-focusable="true" placeholder="Password" class="auth-input" required>
+                <div class="flex justify-end w-full"><a href="#" data-focusable="true" onclick="window.handleForgotPassword(event)" id="forgot-pass-link" class="text-gray-400 text-xs font-medium hover:text-white transition p-2">Forgot Password?</a></div>
+                <button type="submit" id="auth-btn" data-focusable="true" class="mt-4 py-4 bg-[#E50914] text-white font-bold rounded-xl active:scale-95 transition-all shadow-[0_0_20px_rgba(229,9,20,0.3)]">Sign In</button>
+            </form>
+            <p class="text-gray-400 mt-8 text-center text-sm font-medium"><span id="auth-toggle-text">New to NetFilla?</span> <a href="#" data-focusable="true" id="auth-toggle-link" class="text-white font-bold hover:text-[#E50914] p-2">Sign up now.</a></p>
+        </div>
+    </div>
+
+    <!-- DEDICATED PROFILE SCREEN -->
+    <div id="profile-screen" class="hidden fixed inset-0 z-[85] profile-bg-gradient flex-col items-center justify-between pb-16 pt-safe">
+        <button id="profile-close-btn" data-focusable="true" onclick="closeProfileScreen()" class="hidden absolute top-safe left-6 text-white p-2 rounded-full bg-white/10 active:scale-95 header-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <div class="flex flex-col items-center flex-1 justify-center mt-12 w-full">
+            <div class="w-28 h-32 mb-6 drop-shadow-[0_0_30px_rgba(255,20,80,0.6)]">
+                <svg viewBox="0 0 100 120" class="w-full h-full"><defs><linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff6b6b" /><stop offset="50%" stop-color="#e81cff" /><stop offset="100%" stop-color="#5a00ff" /></linearGradient></defs><path d="M50 5 L10 25 V55 C10 85 50 115 50 115 C50 115 90 85 90 55 V25 Z" fill="url(#shieldGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="2"/><rect x="42" y="48" width="16" height="14" rx="2" fill="white"/><path d="M46 48 V43 C46 40 54 40 54 43 V48" stroke="white" stroke-width="2" fill="none"/></svg>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Profile Lock is ON</h1>
+        </div>
+        <div class="w-full flex flex-col items-center mt-auto px-4">
+            <p class="text-gray-300 font-bold mb-6 text-sm tracking-wide">Choose Your Profile</p>
+            <div class="flex flex-wrap justify-center gap-6 md:gap-8 max-w-sm w-full" id="profile-screen-grid"></div>
+        </div>
+    </div>
+
+    <!-- PIN VERIFICATION MODAL -->
+    <div id="pin-modal" class="hidden fixed inset-0 z-[500] bg-black/40 backdrop-blur-2xl flex-col items-center justify-center px-4">
+        <div class="ios-glass rounded-3xl p-8 w-full max-w-[320px] shadow-2xl relative text-center">
+            <button data-focusable="true" onclick="closePinModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white bg-white/10 p-2 rounded-full header-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <div class="w-16 h-16 mx-auto bg-white/10 rounded-full flex items-center justify-center mb-4 border border-white/20"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+            <h2 class="text-xl font-bold text-white mb-2">Profile Locked</h2>
+            <p class="text-gray-400 text-sm mb-6 font-medium">Enter your 4-digit PIN</p>
+            <input type="password" data-focusable="true" id="pin-input" maxlength="4" placeholder="••••" class="w-full bg-white/5 border border-white/20 text-white px-4 py-4 rounded-xl outline-none focus:border-white text-center text-2xl tracking-[1em] mb-4 font-mono shadow-inner">
+            <button data-focusable="true" onclick="submitPin()" class="w-full bg-white text-black py-3.5 rounded-xl font-bold active:scale-95 transition-transform text-[15px]">Enter</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-app" class="hidden flex-col w-full h-full relative">
+        <!-- GLOBAL HEADER -->
+        <header class="absolute top-0 left-0 w-full pt-safe z-50 flex items-center justify-between px-5 pb-2 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none" id="app-header">
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-1 drop-shadow-md"><path d="M4 4L9 20L15 4L20 20" stroke="#E50914" stroke-width="4"/></svg>
+                <h1 class="text-xl font-black text-[#E50914] tracking-tighter drop-shadow-lg">NETFILLA</h1>
+            </div>
+            <div class="pointer-events-auto flex gap-4 items-center">
+                <button data-focusable="true" onclick="switchTab('search')" class="text-white p-2 active:scale-95 drop-shadow-md bg-black/20 rounded-full backdrop-blur-md border border-white/10 header-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
+                <div data-focusable="true" onclick="window.openProfileScreen(true)" class="flex items-center gap-2 cursor-pointer group bg-black/40 backdrop-blur-md pl-1.5 pr-3 py-1.5 rounded-full border border-white/20 shadow-lg hover:bg-black/60 transition-colors header-btn">
+                    <img id="header-avatar" src="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'" class="w-7 h-7 rounded-full object-cover border border-white/10">
+                </div>
+            </div>
+        </header>
+
+        <!-- 1. HOME -->
+        <main id="view-home" class="app-view active !pt-0" onscroll="handleInfiniteScroll(event, 'home')">
+            <div class="relative w-full min-h-[65vh] bg-[#111] border-b border-white/10 rounded-b-[30px] overflow-hidden shadow-2xl flex flex-col justify-end">
+                <img id="home-hero-img" src="" class="absolute inset-0 w-full h-full object-cover opacity-80 transition-opacity duration-700">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/30 to-black/60 pointer-events-none"></div>
+                <div class="absolute top-[90px] left-0 w-full z-40 px-6 flex justify-start gap-6 text-[15px] font-bold text-white tracking-wide">
+                    <span data-focusable="true" onclick="switchTab('series')" class="cursor-pointer border-b-2 border-transparent hover:border-white drop-shadow-lg transition-all header-btn">Shows</span>
+                    <span data-focusable="true" onclick="switchTab('movies')" class="cursor-pointer border-b-2 border-transparent hover:border-white drop-shadow-lg transition-all header-btn">Movies</span>
+                    <span data-focusable="true" class="cursor-pointer flex items-center gap-1 border-b-2 border-transparent hover:border-white drop-shadow-lg transition-all header-btn">Categories <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
+                </div>
+                <div class="relative z-10 w-full flex flex-col items-center px-5 pb-8">
+                    <h2 id="home-hero-title" class="text-4xl md:text-5xl font-black mb-3 text-white uppercase tracking-tighter text-center" style="text-shadow: 0 4px 15px rgba(0,0,0,0.9);">Loading...</h2>
+                    <p class="text-[12px] font-bold text-gray-300 mb-6 tracking-widest drop-shadow-md">TRENDING • ACTION • CINEMATIC</p>
+                    <div class="flex gap-4 w-full max-w-sm">
+                        <button data-focusable="true" onclick="playHeroMovie('home')" class="flex-1 bg-white text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 text-[15px] transition-transform shadow-[0_4px_20px_rgba(255,255,255,0.3)]"><svg width="20" height="20" viewBox="0 0 24 24" fill="black"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Play</button>
+                        <button data-focusable="true" onclick="saveHeroMovie('home')" class="flex-1 ios-glass-light text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 text-[15px] transition-transform"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> My List</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-8 pb-10 mt-6 overflow-hidden">
+                <div id="continue-watching-container" class="hidden"><h2 class="text-xl font-bold mb-3 text-white px-5 tracking-tight">Continue Watching</h2><div id="history-grid" class="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar"></div></div>
+                <div><h2 class="text-xl font-bold mb-4 text-white px-5 tracking-tight">Top 10 TV Shows Today</h2><div id="home-top10-grid" class="flex gap-5 overflow-x-auto pb-6 pt-2 pl-6 no-scrollbar"></div></div>
+                <div><h2 class="text-xl font-bold mb-3 text-white px-5 tracking-tight">Trending Now</h2><div id="home-infinite-grid" class="grid grid-cols-3 md:grid-cols-5 gap-2.5 px-5 pb-4"></div><div id="home-loader" class="hidden text-center py-4"><div class="animate-spin w-6 h-6 border-2 border-[#E50914] border-t-transparent rounded-full mx-auto"></div></div></div>
+            </div>
+        </main>
+
+        <!-- 2. MOVIES -->
+        <main id="view-movies" class="app-view relative !pt-[80px]" onscroll="handleInfiniteScroll(event, 'movies')">
+            <h1 class="text-3xl font-black px-5 pt-4 mb-3 text-white tracking-tight drop-shadow-md">Movies</h1>
+            <div class="mx-5 mb-6 ios-glass-light rounded-2xl p-1.5 shadow-lg"><div class="flex gap-2 overflow-x-auto no-scrollbar" id="movies-tabs">
+                <button data-focusable="true" onclick="fetchCategory('movies', 'all', this)" class="bg-white text-black px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all shadow-sm header-btn">All Movies</button>
+                <button data-focusable="true" onclick="fetchCategory('movies', 'hollywood', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Hollywood</button>
+                <button data-focusable="true" onclick="fetchCategory('movies', 'bollywood', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Bollywood</button>
+                <button data-focusable="true" onclick="fetchCategory('movies', 'tollywood', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Tollywood</button>
+                <button data-focusable="true" onclick="fetchCategory('movies', 'korean', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Korean</button>
+                <button data-focusable="true" onclick="fetchCategory('movies', 'indonesian', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Indonesian</button>
+                <button data-focusable="true" onclick="fetchCategory('movies', 'punjabi', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Punjabi</button>
+            </div></div>
+            <div id="movies-grid" class="grid grid-cols-3 md:grid-cols-5 gap-2.5 px-5 pb-4"></div><div id="movies-loader" class="hidden text-center py-4"><div class="animate-spin w-6 h-6 border-2 border-[#E50914] border-t-transparent rounded-full mx-auto"></div></div>
+        </main>
+
+        <!-- 3. WEB SERIES -->
+        <main id="view-series" class="app-view relative !pt-[80px]" onscroll="handleInfiniteScroll(event, 'series')">
+            <h1 class="text-3xl font-black px-5 pt-4 mb-3 text-white tracking-tight drop-shadow-md">Web Series</h1>
+            <div class="mx-5 mb-6 ios-glass-light rounded-2xl p-1.5 shadow-lg"><div class="flex gap-2 overflow-x-auto no-scrollbar" id="series-tabs">
+                <button data-focusable="true" onclick="fetchCategory('series', 'all', this)" class="bg-white text-black px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all shadow-sm header-btn">All Series</button>
+                <button data-focusable="true" onclick="fetchCategory('series', 'hollywood', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Hollywood</button>
+                <button data-focusable="true" onclick="fetchCategory('series', 'bollywood', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Bollywood</button>
+                <button data-focusable="true" onclick="fetchCategory('series', 'tollywood', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Tollywood</button>
+                <button data-focusable="true" onclick="fetchCategory('series', 'korean', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Korean</button>
+                <button data-focusable="true" onclick="fetchCategory('series', 'indonesian', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Indonesian</button>
+                <button data-focusable="true" onclick="fetchCategory('series', 'punjabi', this)" class="bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn">Punjabi</button>
+            </div></div>
+            <div id="series-grid" class="grid grid-cols-3 md:grid-cols-5 gap-2.5 px-5 pb-4"></div><div id="series-loader" class="hidden text-center py-4"><div class="animate-spin w-6 h-6 border-2 border-[#E50914] border-t-transparent rounded-full mx-auto"></div></div>
+        </main>
+
+        <!-- 4. NEW & HOT -->
+        <main id="view-new-hot" class="app-view !pt-0 relative">
+            <div class="sticky top-0 ios-glass-heavy pt-[60px] px-5 pb-4 z-40 border-b border-white/5 shadow-xl"><h1 class="text-3xl font-black text-white flex items-center gap-3"><span class="text-2xl drop-shadow-md">🍿</span> Coming Soon</h1></div>
+            <div id="new-hot-feed" class="flex flex-col pb-10 pt-4"></div>
+        </main>
+
+        <!-- SEARCH -->
+        <main id="view-search" class="app-view relative !pt-[20px]" onscroll="handleInfiniteScroll(event, 'search')">
+            <div class="sticky top-0 ios-glass-heavy pt-safe px-5 pb-4 z-40 border-b border-white/5">
+                <div class="flex items-center bg-white/5 rounded-xl px-4 py-3.5 mt-4 border border-white/10 focus-within:border-white/40 focus-within:bg-white/10 transition-all shadow-inner">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="search-input" data-focusable="true" placeholder="Search movies & shows..." class="bg-transparent border-none outline-none text-white w-full ml-3 text-[15px] font-medium placeholder-gray-400">
+                </div>
+            </div>
+            <div id="search-grid" class="grid grid-cols-3 md:grid-cols-5 gap-2.5 px-5 pt-6 pb-10"></div>
+            <div id="search-loader" class="hidden text-center py-4"><div class="animate-spin w-6 h-6 border-2 border-[#E50914] border-t-transparent rounded-full mx-auto"></div></div>
+        </main>
+
+        <!-- 5. MY NETFILLA -->
+        <main id="view-my-netfilla" class="app-view !pt-0 relative">
+            <div class="pt-[80px] px-5 pb-8 border-b border-white/10">
+                <div data-focusable="true" class="flex flex-col items-center justify-center gap-5 cursor-pointer group p-4" onclick="openProfileScreen(true)">
+                    <img id="my-netfilla-avatar" src="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'" class="w-28 h-28 rounded-3xl object-cover border-4 border-white/10 group-hover:border-white/40 transition-colors shadow-2xl">
+                    <div class="flex items-center gap-2 bg-white/5 pl-4 pr-3 py-2 rounded-full border border-white/10 backdrop-blur-md"><h1 id="my-netfilla-name" class="text-lg font-black text-white font-akira tracking-wider">Name</h1><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="gray" stroke-width="3" class="group-hover:stroke-white transition-colors"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+                </div>
+            </div>
+            <div class="px-5 mt-8 flex flex-col gap-4">
+                <div data-focusable="true" class="ios-glass rounded-2xl p-5 cursor-pointer hover:bg-white/10 transition-all active:scale-[0.98] border border-white/10 shadow-lg" onclick="openMyListModal()"><div class="flex gap-4 items-center"><div class="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg border border-white/20"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 5v14M5 12h14"></path></svg></div><div class="flex-1"><h3 class="text-white font-bold text-[17px] mb-1 tracking-tight">My List</h3><p class="text-gray-400 text-[13px] leading-snug font-medium">Keep track of the TV shows and movies you want to watch next.</p></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="gray" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></div></div>
+                <div data-focusable="true" class="ios-glass rounded-2xl p-5 cursor-pointer hover:bg-white/10 transition-all active:scale-[0.98] border border-white/10 shadow-lg" onclick="openAccountSettingsModal()"><div class="flex items-center gap-4"><div class="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/20 shadow-inner"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><div class="flex-1"><h3 class="text-white font-bold text-[17px] tracking-tight">Account Settings</h3><p class="text-gray-400 text-[13px] font-medium mt-1">Manage email, password, and subscriptions.</p></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="gray" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></div></div>
+            </div>
+        </main>
+
+        <div class="fixed bottom-0 left-0 w-full px-4 pb-safe pt-2 z-50 pointer-events-none">
+            <nav class="ios-glass-heavy rounded-[30px] flex justify-between items-center px-4 py-2 pointer-events-auto shadow-[0_10px_40px_rgba(0,0,0,0.5)] mb-2" id="main-bottom-nav">
+                <div data-focusable="true" onclick="switchTab('home', this)" id="nav-home" class="nav-item active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span>Home</span></div>
+                <div data-focusable="true" onclick="switchTab('movies', this)" id="nav-movies" class="nav-item"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg><span>Movies</span></div>
+                <div data-focusable="true" onclick="switchTab('series', this)" id="nav-series" class="nav-item"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg><span>Series</span></div>
+                <div data-focusable="true" onclick="switchTab('new-hot', this)" id="nav-new-hot" class="nav-item"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg><span>New & Hot</span></div>
+                <div data-focusable="true" onclick="switchTab('my-netfilla', this)" id="nav-my-netfilla" class="nav-item"><div class="w-[28px] h-[28px] rounded-full bg-gray-800 border-2 border-transparent overflow-hidden shadow-inner"><img id="nav-avatar" src="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'" class="w-full h-full object-cover"></div><span>My NetFilla</span></div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div id="edit-profile-modal" class="hidden fixed inset-0 z-[900] bg-black/50 backdrop-blur-2xl flex-col items-center justify-center px-4">
+        <div class="ios-glass rounded-3xl p-8 w-full max-w-[360px] shadow-2xl relative">
+            <button data-focusable="true" onclick="window.closeEditProfile()" class="absolute top-4 right-4 text-gray-400 hover:text-white bg-white/10 p-2 rounded-full header-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <h2 class="text-2xl font-black text-white mb-6 text-center tracking-tight" id="edit-profile-title">Edit Profile</h2>
+            <div class="flex justify-center mb-8"><img id="edit-profile-avatar-preview" src="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'" class="w-28 h-28 rounded-2xl object-cover border-2 border-white/20 shadow-xl"></div>
+            <div class="space-y-4 mb-8">
+                <div><label class="text-xs text-gray-400 font-bold uppercase mb-1.5 block tracking-wider pl-1">Profile Name</label><input type="text" id="edit-profile-name" data-focusable="true" class="w-full bg-white/5 border border-white/20 text-white px-4 py-3.5 rounded-xl outline-none focus:border-white font-akira text-[10px] shadow-inner"></div>
+                <div><label class="text-xs text-gray-400 font-bold uppercase mb-1.5 block tracking-wider pl-1">Profile PIN (Optional)</label><input type="password" id="edit-profile-pin" data-focusable="true" maxlength="4" placeholder="••••" class="w-full bg-white/5 border border-white/20 text-white px-4 py-3.5 rounded-xl outline-none focus:border-white text-center tracking-[0.5em] font-mono shadow-inner"></div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button data-focusable="true" onclick="window.saveEditedProfile()" class="w-full bg-white text-black py-3.5 rounded-xl font-bold active:scale-95 transition-transform text-[15px] shadow-lg">Save Profile</button>
+                <button data-focusable="true" onclick="window.deleteProfile()" id="delete-profile-btn" class="w-full ios-glass-light text-red-500 py-3.5 rounded-xl font-bold active:scale-95 transition-transform mt-2 border-red-500/30">Delete Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MY LIST MODAL -->
+    <div id="my-list-modal" class="hidden fixed inset-0 z-[300] bg-black/90 backdrop-blur-xl flex-col overflow-y-auto">
+        <div class="sticky top-0 ios-glass-heavy pt-safe px-5 pb-4 flex items-center justify-between z-10 border-b border-white/10 shadow-lg"><div class="flex items-center gap-3"><button data-focusable="true" onclick="closeMyListModal()" class="text-white p-2 bg-white/10 rounded-full active:scale-95 header-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button><h1 class="text-2xl font-black text-white tracking-tight">My List</h1></div><button data-focusable="true" onclick="clearFavourites()" class="text-red-500 font-bold text-sm bg-white/5 px-4 py-2 rounded-full border border-red-500/20 active:scale-95 header-btn">Clear All</button></div>
+        <div id="my-list-grid" class="grid grid-cols-3 md:grid-cols-5 gap-2.5 px-5 pt-6 pb-24"></div>
+    </div>
+
+    <!-- ACCOUNT SETTINGS MODAL -->
+    <div id="account-settings-modal" class="hidden fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex-col overflow-y-auto font-sans">
+        <div class="ios-glass-heavy h-[70px] pt-safe flex items-center px-4 sticky top-0 z-20 shadow-lg border-b border-white/10"><button data-focusable="true" onclick="closeAccountSettingsModal()" class="text-white p-2 mr-2 active:scale-95 bg-white/10 rounded-full header-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button><h1 class="text-lg font-black text-white flex-1 text-center pr-12 tracking-widest font-akira">ACCOUNT</h1></div>
+        <div class="p-5 flex flex-col gap-8 text-white pb-24 mt-4 max-w-lg mx-auto w-full">
+            <div class="ios-glass border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                <div data-focusable="true" class="p-5 border-b border-white/10 flex justify-between items-center hover:bg-white/5 cursor-pointer transition-colors" onclick="changeAccountDetail('password')"><div class="flex gap-4 items-center"><div class="bg-white/10 p-2.5 rounded-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div><span class="font-bold text-[16px] tracking-wide">Change Password</span></div></div>
+                <div data-focusable="true" class="p-5 border-b border-white/10 flex justify-between items-center hover:bg-white/5 cursor-pointer transition-colors" onclick="changeAccountDetail('email')"><div class="flex gap-4 items-center"><div class="bg-white/10 p-2.5 rounded-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div><div><span class="font-bold text-[16px] block tracking-wide">Email</span><span class="text-[13px] text-gray-400 font-medium mt-0.5" id="acc-disp-email">Loading...</span></div></div></div>
+                <div data-focusable="true" class="p-5 flex justify-between items-center hover:bg-white/5 cursor-pointer transition-colors" onclick="changeAccountDetail('phone')"><div class="flex gap-4 items-center"><div class="bg-white/10 p-2.5 rounded-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div><div><span class="font-bold text-[16px] block tracking-wide">Mobile phone</span><span class="text-[13px] text-gray-400 font-medium mt-0.5" id="acc-disp-phone">Add phone number</span></div></div></div>
+            </div>
+            <div>
+                <h3 class="text-gray-400 font-bold text-xs mb-3 px-1 uppercase tracking-widest">Subscription</h3>
+                <div data-focusable="true" class="ios-glass border border-white/10 rounded-2xl overflow-hidden shadow-2xl p-5 relative cursor-pointer" onclick="openSubscriptionModal()"><div class="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-yellow-600/20 opacity-50"></div><div class="relative z-10 flex justify-between items-center"><div class="flex gap-4 items-center"><div class="bg-gradient-to-br from-yellow-400 to-amber-600 p-2.5 rounded-xl text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg></div><div><span class="font-bold text-[16px] block tracking-wide text-white">Current Plan</span><span class="text-[13px] text-yellow-500 font-black mt-0.5 uppercase tracking-widest" id="acc-disp-plan">Free</span></div></div><span class="text-xs font-bold bg-white/10 px-3.5 py-1.5 rounded-full text-white backdrop-blur-md border border-white/20">Upgrade</span></div></div>
+            </div>
+            <button data-focusable="true" onclick="window.handleLogout()" class="ios-glass-light border border-red-500/30 text-red-500 font-black py-4 rounded-2xl w-full shadow-lg hover:bg-red-500/10 transition-colors text-[15px] active:scale-[0.98] tracking-wide mt-2">Sign Out of NetFilla</button>
+        </div>
+    </div>
+
+    <!-- SUBSCRIPTION MODAL -->
+    <div id="subscription-modal" class="hidden fixed inset-0 z-[500] bg-black/90 backdrop-blur-2xl flex-col items-center justify-center p-4">
+        <button data-focusable="true" onclick="closeSubscriptionModal()" class="absolute top-safe right-4 text-white p-3 bg-white/10 rounded-full active:scale-95 header-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <div class="text-center mb-10 w-full"><div class="inline-flex bg-gradient-to-r from-amber-400 to-yellow-600 p-4 rounded-full mb-5 shadow-[0_0_30px_rgba(251,191,36,0.4)]"><svg width="40" height="40" viewBox="0 0 24 24" fill="black"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg></div><h2 class="text-3xl md:text-4xl font-black text-white tracking-tight drop-shadow-md">Premium Plans</h2><p class="text-gray-400 text-sm mt-3 font-medium">Unlock 4K streaming and unlimited profiles.</p></div>
+        <div class="w-full max-w-sm flex flex-col gap-4">
+            <div data-focusable="true" onclick="selectPlan('1 Month Premium', '120 RS')" class="ios-glass rounded-3xl p-6 cursor-pointer hover:border-yellow-500/50 transition-all border-2 border-white/10 relative overflow-hidden group active:scale-95"><div class="absolute top-0 right-0 bg-white/10 px-4 py-1.5 rounded-bl-2xl font-bold text-[11px] text-gray-300 tracking-wider">POPULAR</div><h3 class="text-2xl font-black text-white mb-1">1 Month</h3><div class="text-yellow-500 font-black text-xl mb-4">120 RS</div><ul class="text-sm text-gray-300 font-medium space-y-2"><li class="flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> 4K Ultra HD Quality</li><li class="flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> Ad-Free Experience</li></ul></div>
+            <div data-focusable="true" onclick="selectPlan('1 Year Premium', '1000 RS')" class="ios-glass rounded-3xl p-6 cursor-pointer hover:border-yellow-500/50 transition-all border-2 border-yellow-500/50 relative overflow-hidden group bg-gradient-to-br from-yellow-500/10 to-transparent active:scale-95"><div class="absolute top-0 right-0 bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-1.5 rounded-bl-2xl font-black text-[11px] text-black tracking-wider shadow-lg">BEST VALUE</div><h3 class="text-2xl font-black text-white mb-1">1 Year</h3><div class="text-yellow-500 font-black text-xl mb-4">1000 RS <span class="text-xs text-gray-500 line-through ml-1 font-medium">1440 RS</span></div><ul class="text-sm text-gray-300 font-medium space-y-2"><li class="flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> Everything in 1 Month</li><li class="flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> Save 440 RS annually</li></ul></div>
+        </div>
+    </div>
+
+    <!-- DETAILS MODAL -->
+    <div id="details-modal" class="hidden fixed inset-0 z-[600] bg-black flex-col overflow-y-auto">
+        <div class="relative w-full aspect-[4/5] md:aspect-video bg-black flex-shrink-0"><img id="detail-backdrop" src="" class="w-full h-full object-cover opacity-80" /><div class="absolute top-safe w-full px-4 flex justify-between items-center z-20"><button data-focusable="true" onclick="closeDetails()" class="text-white p-2 hover:bg-black/20 rounded-full transition header-btn"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg></button></div><div class="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-black to-transparent pointer-events-none"></div></div>
+        <div class="px-4 pb-20 w-full z-10 flex flex-col pt-2 -mt-12 md:mt-0 relative">
+            <span class="text-[#E50914] font-black text-[12px] tracking-[0.2em] mb-1 block">NETFILLA</span>
+            <h1 id="detail-title" class="text-3xl md:text-4xl font-black text-white mb-2 leading-tight tracking-tight drop-shadow-md">Title</h1>
+            <div class="flex items-center flex-wrap gap-2 text-gray-400 text-[13px] font-bold mb-3" id="detail-metadata"></div>
+            <div class="flex items-center gap-2 mb-4" id="detail-top10-box"><div class="bg-[#E50914] text-white font-black text-[8px] leading-tight px-1 py-0.5 rounded shadow-sm text-center">TOP<br>10</div><span class="text-white font-bold text-[15px] tracking-wide" id="detail-top10-text">#1 in Movies Today</span></div>
+            <button data-focusable="true" id="detail-play-btn" onclick="playMovie(currentDetailMovieId)" class="w-full bg-white text-black font-bold py-3.5 rounded-sm flex items-center justify-center gap-2 mb-3 active:scale-[0.98] transition shadow-lg"><svg width="24" height="24" viewBox="0 0 24 24" fill="black"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Play</button>
+            <p id="detail-overview" class="text-white text-[14px] leading-relaxed mb-3 mt-2">Loading description...</p>
+            <div class="text-gray-400 text-[13px] leading-snug space-y-1 mb-6"><p id="detail-cast" class="truncate">Starring: ...</p></div>
+            <div class="flex justify-start gap-10 text-gray-400 mb-6 pl-2" id="action-row-icons"></div>
+            <div class="flex gap-6 border-t-[3px] border-transparent pt-3 border-b border-gray-800 relative mb-4 mt-2 overflow-x-auto no-scrollbar" id="detail-tabs-container"><div id="tab-indicator" class="absolute top-0 left-0 h-[4px] bg-[#E50914] transition-all duration-300"></div><button data-focusable="true" onclick="switchDetailsTab('episodes')" id="btn-tab-episodes" class="detail-tab hidden">Episodes</button><button data-focusable="true" onclick="switchDetailsTab('trailers')" id="btn-tab-trailers" class="detail-tab">Trailers & More</button><button data-focusable="true" onclick="switchDetailsTab('similar')" id="btn-tab-similar" class="detail-tab active">More Like This</button></div>
+            <div id="tab-content-episodes" class="hidden flex-col gap-6"></div><div id="tab-content-trailers" class="hidden flex-col gap-8"></div><div id="tab-content-similar" class="grid grid-cols-3 md:grid-cols-5 gap-2"></div>
+        </div>
+    </div>
+
+    <!-- PLAYER MODAL -->
+    <div id="player-modal" class="hidden fixed inset-0 z-[700] bg-black flex-col">
+        <div class="absolute top-safe right-4 z-50 pt-2"><button data-focusable="true" id="player-close-btn" onclick="closePlayer()" class="bg-black/50 p-3 text-white rounded-full backdrop-blur-md active:scale-95 border border-white/10 header-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>
+        <iframe id="video-frame" class="w-full h-full border-none bg-black" src="" allowfullscreen></iframe>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.2/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyD4qx0cLM_sNiPVp5ktJgegYgs9eCwhT04", authDomain: "moizzflix.firebaseapp.com", projectId: "moizzflix" };
+        let auth, db;
+        try { const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); } catch(e) {}
+
+        let firebaseUser = null;
+        onAuthStateChanged(auth, async (user) => {
+            document.getElementById('global-loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('global-loader').classList.add('hidden'), 500);
+            if (user) {
+                firebaseUser = user; const docSnap = await getDoc(doc(db, "users", user.uid));
+                if(docSnap.exists()) {
+                    const data = docSnap.data();
+                    window.currentUser = { username: data.username, email: user.email, phone: data.phone || "Add phone number", plan: data.plan || "Free" };
+                    window.savedProfiles = data.profiles || [{ id: 1, name: data.username, avatarUrl: 'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg', pin: "" }];
+                } else {
+                    window.currentUser = { username: "User", email: user.email, phone: "Add phone number", plan: "Free" };
+                    window.savedProfiles = [{ id: 1, name: "User", avatarUrl: 'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg', pin: "" }];
+                }
+                localStorage.setItem('netfilla_user', JSON.stringify(window.currentUser)); localStorage.setItem('netfilla_profiles', JSON.stringify(window.savedProfiles));
+                window.hideAllScreens(); window.openProfileScreen(false);
+            } else {
+                firebaseUser = null; window.hideAllScreens(); document.getElementById('intro-screen').classList.remove('hidden'); document.getElementById('intro-screen').classList.add('flex');
+            }
+            setTimeout(()=>SpatialNav.scanAndFocus(),100);
+        });
+
+        window.handleAuthSubmit = async function(e) {
+            e.preventDefault(); const btn = document.getElementById('auth-btn'); btn.innerText = "Processing..."; btn.disabled = true;
+            const email = document.getElementById('auth-email').value; const password = document.getElementById('auth-password').value; const uname = document.getElementById('auth-username').value || email.split('@')[0];
+            try {
+                if(document.getElementById('auth-title').innerText === "Sign In") { await signInWithEmailAndPassword(auth, email, password); } 
+                else {
+                    const cred = await createUserWithEmailAndPassword(auth, email, password);
+                    await setDoc(doc(db, "users", cred.user.uid), { username: uname, email: email, phone: "Add phone number", plan: "Free", profiles: [{ id: 1, name: uname, avatarUrl: 'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg', pin: "" }] });
+                }
+            } catch(err) { alert("Error: " + err.message); btn.innerText = document.getElementById('auth-title').innerText; btn.disabled = false; }
+        }
+        document.getElementById('auth-form').addEventListener('submit', window.handleAuthSubmit);
+
+        window.handleForgotPassword = async function(e) {
+            e.preventDefault(); const email = document.getElementById('auth-email').value.trim();
+            if(!email) return alert("Please enter your email address in the field above first.");
+            document.getElementById('forgot-pass-link').innerText = "Sending...";
+            try { await sendPasswordResetEmail(auth, email); alert("Password reset email sent! Please check your inbox."); } catch (err) { alert("Error: " + err.message); }
+            document.getElementById('forgot-pass-link').innerText = "Forgot Password?";
+        }
+
+        window.handleLogout = async function() { if(confirm("Sign out of NetFilla?")) { await signOut(auth); window.closeAccountSettingsModal(); window.hideAllScreens(); document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('auth-screen').classList.add('flex'); SpatialNav.scanAndFocus(); } }
+
+        window.syncToFirestore = async function() {
+            if(firebaseUser) { try { await updateDoc(doc(db, "users", firebaseUser.uid), { profiles: window.savedProfiles, plan: window.currentUser.plan, phone: window.currentUser.phone }); } catch(e) {} }
+        }
+    </script>
+
+    <script>
+        const API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
+        const IMG_URL = "https://image.tmdb.org/t/p/w500"; 
+        const BACKDROP_URL = "https://image.tmdb.org/t/p/w780";
+        
+        window.endpoints = { 
+            trending: `https://api.themoviedb.org/3/trending/all/day?api_key=${API_KEY}`, upcoming: `https://api.themoviedb.org/3/movie/upcoming?api_key=${API_KEY}`,
+            movies_all: `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}`, movies_hollywood: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=en&sort_by=popularity.desc`, movies_bollywood: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=hi&sort_by=popularity.desc`, movies_tollywood: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=te&sort_by=popularity.desc`, movies_korean: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=ko&sort_by=popularity.desc`, movies_indonesian: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=id&sort_by=popularity.desc`, movies_punjabi: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=pa&sort_by=popularity.desc`,
+            series_all: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&sort_by=popularity.desc`, series_hollywood: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=en&sort_by=popularity.desc`, series_bollywood: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=hi&sort_by=popularity.desc`, series_tollywood: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=te&sort_by=popularity.desc`, series_korean: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=ko&sort_by=popularity.desc`, series_indonesian: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=id&sort_by=popularity.desc`, series_punjabi: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=pa&sort_by=popularity.desc`
+        };
+
+        const globalMovieData = {}; let currentDetailMovieId = null; let currentDetailType = 'movie'; let homeHeroMovieId = null;
+        let myFavourites = JSON.parse(localStorage.getItem('netfilla_favs')) || [];
+        let watchHistory = JSON.parse(localStorage.getItem('netfilla_history')) || [];
+        
+        window.currentUser = JSON.parse(localStorage.getItem('netfilla_user')) || { username: "Guest", email: "guest@netfilla.com", phone: "Not provided", plan: "Free" };
+        window.savedProfiles = JSON.parse(localStorage.getItem('netfilla_profiles')) || [{ id: 1, name: window.currentUser.username, avatarUrl: 'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg', pin: "" }];
+        let activeProfileId = parseInt(localStorage.getItem('netfilla_active_pid')) || 1;
+
+        window.currentPage = { home: 1, movies: 1, series: 1, search: 1 };
+        window.currentCategoryUrl = { movies: endpoints.movies_all, series: endpoints.series_all, search: '' };
+        window.isLoading = { home: false, movies: false, series: false, search: false };
+
+        let isEditMode = false;
+        if(window.innerWidth > 1024) document.body.classList.add('tv-mode');
+
+        window.hideAllScreens = function() {
+            document.getElementById('intro-screen').classList.add('hidden'); document.getElementById('intro-screen').classList.remove('flex');
+            document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('flex');
+            document.getElementById('profile-screen').classList.add('hidden'); document.getElementById('profile-screen').classList.remove('flex');
+            document.getElementById('main-app').classList.add('hidden'); document.getElementById('main-app').classList.remove('flex');
+        }
+
+        window.startApp = function() {
+            window.hideAllScreens();
+            if(window.currentUser.username === "Guest" || !window.currentUser.username) { document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('auth-screen').classList.add('flex'); }
+            else { window.openProfileScreen(false); }
+            SpatialNav.scanAndFocus();
+        }
+
+        if(!window.handleAuthSubmit) { // Fallback if Firebase not loaded
+            document.getElementById('auth-form').addEventListener('submit', (e) => {
+                e.preventDefault(); const email = document.getElementById('auth-email').value; const uname = document.getElementById('auth-username').value || email.split('@')[0];
+                window.currentUser = { username: uname, email: email, phone: "Add phone number", plan: "Free" }; localStorage.setItem('netfilla_user', JSON.stringify(window.currentUser));
+                if(window.savedProfiles.length > 0) window.savedProfiles[0].name = uname; else window.savedProfiles.push({ id: 1, name: uname, avatarUrl: 'https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg', pin: "" });
+                localStorage.setItem('netfilla_profiles', JSON.stringify(window.savedProfiles)); window.hideAllScreens(); window.openProfileScreen(false);
+            });
+        }
+
+        window.openProfileScreen = function(fromApp = false) {
+            isEditMode = false; window.hideAllScreens(); document.getElementById('profile-screen').classList.remove('hidden'); document.getElementById('profile-screen').classList.add('flex');
+            if(fromApp) document.getElementById('profile-close-btn').classList.remove('hidden'); else document.getElementById('profile-close-btn').classList.add('hidden');
+            window.renderProfileScreenGrid();
+        }
+        window.closeProfileScreen = function() { window.hideAllScreens(); document.getElementById('main-app').classList.remove('hidden'); document.getElementById('main-app').classList.add('flex'); SpatialNav.scanAndFocus(); }
+
+        window.renderProfileScreenGrid = function() {
+            const cont = document.getElementById('profile-screen-grid'); cont.innerHTML = "";
+            window.savedProfiles.forEach(p => {
+                const lockIcon = (p.pin && p.pin.length > 0) ? `<div class="absolute bottom-1.5 left-1.5 bg-black/80 p-1 rounded backdrop-blur border border-white/20"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>` : "";
+                const editIcon = isEditMode ? `<div class="absolute inset-0 bg-black/60 flex items-center justify-center rounded-2xl"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>` : "";
+                cont.innerHTML += `<div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer transition-transform ${isEditMode ? 'hover:scale-105' : 'active:scale-95'}" onclick="window.handleProfileClick(${p.id})"><div class="relative w-[85px] h-[85px] md:w-[120px] md:h-[120px] rounded-2xl overflow-hidden border-2 border-transparent shadow-xl"><img src="${p.avatarUrl}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'" class="w-full h-full object-cover">${lockIcon}${editIcon}</div><span class="text-white text-[13px] md:text-[15px] font-bold tracking-wide">${p.name}</span></div>`;
+            });
+            if(!isEditMode && window.savedProfiles.length < 2) { cont.innerHTML += `<div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform" onclick="window.addSecondProfile()"><div class="w-[85px] h-[85px] md:w-[120px] md:h-[120px] rounded-2xl bg-[#262626] flex items-center justify-center hover:bg-[#333] transition-colors shadow-xl"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div><span class="text-white text-[13px] md:text-[15px] font-bold tracking-wide">Add</span></div>`; }
+            if(window.savedProfiles.length > 0) { cont.innerHTML += `<div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform" onclick="window.toggleEditMode()"><div class="w-[85px] h-[85px] md:w-[120px] md:h-[120px] rounded-2xl bg-[#262626] flex items-center justify-center hover:bg-[#333] transition-colors shadow-xl">${isEditMode ? `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>` : `<svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`}</div><span class="text-white text-[13px] md:text-[15px] font-bold tracking-wide">${isEditMode ? 'Done' : 'Edit'}</span></div>`; }
+            setTimeout(() => SpatialNav.scanAndFocus(), 100);
+        }
+
+        window.toggleEditMode = function() { isEditMode = !isEditMode; window.renderProfileScreenGrid(); }
+        window.handleProfileClick = function(id) { if(isEditMode) window.openEditProfile(id); else window.attemptSwitchProfile(id); }
+        window.addSecondProfile = function() { window.savedProfiles.push({ id: 2, name: 'Profile 2', avatarUrl: 'https://image.tmdb.org/t/p/w500/vD14X2N2jD5AIt4v69JvBq2aI1Q.jpg', pin: "" }); localStorage.setItem('netfilla_profiles', JSON.stringify(window.savedProfiles)); if(window.syncToFirestore) window.syncToFirestore(); window.renderProfileScreenGrid(); }
+        
+        window.loadProfileData = function() {
+            const p = window.savedProfiles.find(x => x.id === activeProfileId); if(!p) return;
+            localStorage.setItem('netfilla_active_pid', activeProfileId);
+            if(document.getElementById('nav-avatar')) document.getElementById('nav-avatar').src = p.avatarUrl;
+            if(document.getElementById('header-avatar')) document.getElementById('header-avatar').src = p.avatarUrl;
+            if(document.getElementById('my-netfilla-avatar')) document.getElementById('my-netfilla-avatar').src = p.avatarUrl;
+            if(document.getElementById('my-netfilla-name')) document.getElementById('my-netfilla-name').innerText = p.name;
+        }
+
+        window.pendingProfileId = null;
+        window.attemptSwitchProfile = function(id) { const p = window.savedProfiles.find(x => x.id === id); if(p.pin && p.pin.trim() !== "") { window.pendingProfileId = id; document.getElementById('pin-input').value = ""; document.getElementById('pin-modal').classList.remove('hidden'); document.getElementById('pin-modal').classList.add('flex'); SpatialNav.scanAndFocus(); } else { window.executeSwitchProfile(id); } }
+        window.closePinModal = function() { document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('pin-modal').classList.remove('flex'); SpatialNav.scanAndFocus(); }
+        window.submitPin = function() { const p = window.savedProfiles.find(x => x.id === window.pendingProfileId); if(document.getElementById('pin-input').value === p.pin) { window.closePinModal(); window.executeSwitchProfile(window.pendingProfileId); } else { alert("Incorrect PIN"); document.getElementById('pin-input').value = ""; } }
+        window.executeSwitchProfile = function(id) { activeProfileId = id; window.loadProfileData(); window.closeProfileScreen(); window.switchTab('home', document.getElementById('nav-home')); }
+
+        window.openEditProfile = function(id) { window.editingProfileId = id; const p = window.savedProfiles.find(x => x.id === id); document.getElementById('edit-profile-avatar-preview').src = p.avatarUrl; document.getElementById('edit-profile-name').value = p.name; document.getElementById('edit-profile-pin').value = p.pin || ""; if(window.savedProfiles.length <= 1) document.getElementById('delete-profile-btn').classList.add('hidden'); else document.getElementById('delete-profile-btn').classList.remove('hidden'); document.getElementById('edit-profile-modal').classList.remove('hidden'); document.getElementById('edit-profile-modal').classList.add('flex'); SpatialNav.scanAndFocus(); }
+        window.closeEditProfile = function() { document.getElementById('edit-profile-modal').classList.add('hidden'); document.getElementById('edit-profile-modal').classList.remove('flex'); SpatialNav.scanAndFocus(); }
+        window.saveEditedProfile = function() { const name = document.getElementById('edit-profile-name').value.trim(); if(!name) return alert("Name cannot be empty"); const pin = document.getElementById('edit-profile-pin').value.trim(); const p = window.savedProfiles.find(x => x.id === window.editingProfileId); p.name = name; p.pin = pin; localStorage.setItem('netfilla_profiles', JSON.stringify(window.savedProfiles)); if(window.syncToFirestore) window.syncToFirestore(); window.loadProfileData(); window.closeEditProfile(); window.renderProfileScreenGrid(); }
+        window.deleteProfile = function() { if(confirm("Delete this profile?")) { window.savedProfiles = window.savedProfiles.filter(x => x.id !== window.editingProfileId); if(activeProfileId === window.editingProfileId) activeProfileId = window.savedProfiles[0].id; localStorage.setItem('netfilla_profiles', JSON.stringify(window.savedProfiles)); if(window.syncToFirestore) window.syncToFirestore(); window.loadProfileData(); window.closeEditProfile(); window.renderProfileScreenGrid(); } }
+
+        window.switchTab = function(tabId, btn = null) { 
+            if(btn) { document.querySelectorAll('#main-bottom-nav .nav-item').forEach(n => { n.classList.remove('active', 'text-white'); if(n.id === 'nav-my-netfilla') n.querySelector('div').classList.remove('border-white'); }); btn.classList.add('active', 'text-white'); if(tabId === 'my-netfilla') btn.querySelector('div').classList.add('border-white'); } 
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active')); document.getElementById(`view-${tabId}`).classList.add('active'); 
+            const header = document.getElementById('app-header');
+            if(tabId === 'my-netfilla' || tabId === 'search' || tabId === 'new-hot') header.classList.add('hidden'); else header.classList.remove('hidden');
+            try {
+                if(tabId === 'home') { if(document.getElementById('home-infinite-grid').innerHTML === '') window.renderHomeGrids(); window.loadHistoryUI(); }
+                if(tabId === 'new-hot' && document.getElementById('new-hot-feed').innerHTML === '') window.fetchNewAndHot();
+                if(tabId === 'movies' && document.getElementById('movies-grid').innerHTML === '') window.fetchMoviesInit(endpoints.movies_all, 'movies-grid', 'movies');
+                if(tabId === 'series' && document.getElementById('series-grid').innerHTML === '') window.fetchMoviesInit(endpoints.series_all, 'series-grid', 'series');
+            } catch(e) {}
+            setTimeout(()=>SpatialNav.scanAndFocus(), 200);
+        }
+
+        // --- SEARCH EVENT LISTENER ---
+        let searchTimeoutApp = null; 
+        document.getElementById('search-input').addEventListener('input', function(e) { 
+            clearTimeout(searchTimeoutApp); const q = e.target.value.trim(); 
+            if(q.length > 0) { 
+                document.getElementById('search-grid').innerHTML = ''; document.getElementById('search-loader').classList.remove('hidden');
+                searchTimeoutApp = setTimeout(() => { window.fetchMoviesInit(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(q)}`, 'search-grid', 'search'); }, 600); 
+            } else { document.getElementById('search-grid').innerHTML = ''; }
+        });
+
+        window.handleInfiniteScroll = function(e, type) { if (e.target.scrollTop + e.target.clientHeight >= e.target.scrollHeight - 400) { if(type === 'home') window.appendMoreMovies(endpoints.trending, 'home-infinite-grid', 'home'); if(type === 'movies') window.appendMoreMovies(window.currentCategoryUrl.movies, 'movies-grid', 'movies'); if(type === 'series') window.appendMoreMovies(window.currentCategoryUrl.series, 'series-grid', 'series'); if(type === 'search' && document.getElementById('search-input').value.trim() !== '') window.appendMoreMovies(window.currentCategoryUrl.search, 'search-grid', 'search');} }
+        
+        window.fetchMoviesInit = async function(url, gridId, type) { window.currentPage[type] = 1; window.currentCategoryUrl[type] = url; document.getElementById(gridId).innerHTML = ''; await window.appendMoreMovies(url, gridId, type); }
+        
+        window.appendMoreMovies = async function(urlBase, gridId, type) {
+            if(window.isLoading[type]) return; window.isLoading[type] = true; document.getElementById(`${type}-loader`)?.classList.remove('hidden');
+            try {
+                let res = await fetch(`${urlBase}${urlBase.includes('?')?'&':'?'}page=${window.currentPage[type]}`); let data = await res.json(); let grid = document.getElementById(gridId);
+                if(data && data.results) {
+                    data.results.forEach(m => {
+                        if(!m.poster_path) return; globalMovieData[m.id] = m; m.is_tv = type === 'series' || !!m.first_air_date;
+                        grid.innerHTML += `<div data-focusable="true" class="movie-card cursor-pointer shadow-lg" onclick="window.showMovieDetails(${m.id})"><img src="${IMG_URL+m.poster_path}" class="w-full aspect-[2/3] object-cover"></div>`;
+                    });
+                    window.currentPage[type]++;
+                }
+            } catch(e) { console.log('Append Error:', e); } finally { window.isLoading[type] = false; document.getElementById(`${type}-loader`)?.classList.add('hidden'); SpatialNav.scanAndFocus(false); }
+        }
+        
+        window.fetchCategory = function(type, category, btn) { document.querySelectorAll(`#${type}-tabs button`).forEach(b => { b.className = 'bg-transparent text-white/70 hover:text-white px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all header-btn'; }); btn.className = 'bg-white text-black px-4 py-2 rounded-xl text-[13px] font-bold flex-shrink-0 transition-all shadow-sm header-btn'; window.fetchMoviesInit(endpoints[`${type}_${category}`], `${type}-grid`, type); }
+
+        window.loadHistoryUI = function() {
+            const container = document.getElementById('continue-watching-container'); const grid = document.getElementById('history-grid');
+            if(watchHistory.length > 0) {
+                container.classList.remove('hidden'); grid.innerHTML = "";
+                watchHistory.forEach(m => { grid.innerHTML += `<div data-focusable="true" class="min-w-[150px] w-[150px] cursor-pointer group flex-shrink-0 relative" onclick="window.showMovieDetails(${m.id})"><div class="relative w-full aspect-video rounded-xl overflow-hidden border border-white/10 group-hover:border-white/40 transition-colors bg-[#111] shadow-lg"><img src="${BACKDROP_URL + (m.backdrop_path || m.poster_path)}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"><div class="absolute inset-0 bg-black/30 flex items-center justify-center"><svg width="32" height="32" viewBox="0 0 24 24" fill="white" class="opacity-90 drop-shadow-lg"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div><div class="absolute bottom-0 left-0 h-1.5 bg-[#E50914] shadow-[0_0_10px_#E50914]" style="width: ${Math.floor(Math.random() * 50 + 30)}%;"></div></div><p class="text-white text-[12px] mt-2.5 font-bold truncate w-full px-1">${m.title || m.name}</p></div>`; });
+            } else { container.classList.add('hidden'); }
+            SpatialNav.scanAndFocus(false);
+        }
+        window.addToHistory = function(id) { const m = globalMovieData[id]; if(!m) return; watchHistory = watchHistory.filter(x => x.id !== id); watchHistory.unshift(m); if(watchHistory.length > 15) watchHistory.pop(); localStorage.setItem('netfilla_history', JSON.stringify(watchHistory)); window.loadHistoryUI(); }
+
+        window.renderHomeGrids = async function() {
+            try {
+                let resTrend = await fetch(endpoints.trending); let dTrend = await resTrend.json();
+                if(dTrend.results && dTrend.results.length > 0) {
+                    let m = dTrend.results[0]; globalMovieData[m.id] = m; homeHeroMovieId = m.id; m.is_tv = !!m.name; 
+                    document.getElementById('home-hero-img').src = BACKDROP_URL + (m.backdrop_path || m.poster_path); 
+                    document.getElementById('home-hero-title').innerText = m.title || m.name; 
+                }
+            } catch(e) { console.log('Hero fetch err', e); }
+
+            try {
+                let resTop = await fetch("https://api.themoviedb.org/3/tv/top_rated?api_key="+API_KEY); let dTop = await resTop.json();
+                let c = document.getElementById('home-top10-grid'); c.innerHTML = ''; 
+                if(dTop.results && dTop.results.length > 0) {
+                    dTop.results.slice(0, 10).forEach((m, i) => { 
+                        if(!m.poster_path) return; globalMovieData[m.id] = m; m.is_tv = true; 
+                        c.innerHTML += `<div data-focusable="true" class="flex-shrink-0 flex items-center relative w-[160px] cursor-pointer group" onclick="window.showMovieDetails(${m.id})"><span class="text-stroke-number group-hover:scale-110 transition-transform origin-bottom-left">${i+1}</span><div class="top-10-img-wrapper w-[120px] h-[170px] rounded-xl overflow-hidden border border-white/10 group-hover:border-white/30 transition-all shadow-xl"><img src="${IMG_URL + m.poster_path}" class="w-full h-full object-cover opacity-90"><div class="absolute top-2 left-2 bg-black/60 rounded p-1 backdrop-blur"><svg width="14" height="14" viewBox="0 0 24 24" fill="#E50914"><path d="M4 4h16v16H4z"/></svg></div></div></div>`; 
+                    });
+                }
+            } catch(e) { console.log('Top10 fetch err', e); }
+
+            await window.fetchMoviesInit(endpoints.trending, 'home-infinite-grid', 'home');
+            SpatialNav.scanAndFocus();
+        }
+
+        window.fetchNewAndHot = async function() {
+            const grid = document.getElementById('new-hot-feed'); grid.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-8 h-8 border-4 border-[#E50914] border-t-transparent rounded-full mx-auto"></div></div>';
+            try {
+                const res = await fetch(endpoints.upcoming); const data = await res.json(); grid.innerHTML = '';
+                if(data.results) {
+                    data.results.forEach(m => {
+                        if(!m.backdrop_path) return; globalMovieData[m.id] = m; m.is_tv = !!m.name; const ds = m.release_date || m.first_air_date ? new Date(m.release_date || m.first_air_date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : 'SOON';
+                        grid.innerHTML += `<div class="mb-10 w-full pb-8 border-b border-white/10 last:border-0"><div data-focusable="true" class="w-full relative aspect-video bg-[#111] overflow-hidden cursor-pointer shadow-2xl group rounded-none md:rounded-2xl" onclick="window.playMovie(${m.id})"><img src="${BACKDROP_URL + m.backdrop_path}" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"><div class="absolute top-3 left-3 text-[#E50914] font-black text-3xl drop-shadow-md">N</div><div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"><div class="bg-black/60 rounded-full p-4 border border-white/20 backdrop-blur-md shadow-2xl"><svg width="36" height="36" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div></div></div><div class="mt-5 px-5"><h2 class="text-[32px] font-black uppercase tracking-tighter mb-2 leading-none text-white drop-shadow-sm">${m.title || m.name}</h2><p class="text-gray-400 text-[13px] font-bold mb-3 tracking-wide uppercase">Coming: ${ds}</p><p class="text-gray-300 text-[14px] leading-relaxed line-clamp-3 font-medium">${m.overview}</p></div></div>`;
+                    });
+                }
+            } catch(e) { console.log('NewAndHot fetch err', e); }
+            SpatialNav.scanAndFocus();
+        }
+
+        window.switchDetailsTab = function(tab) {
+            document.querySelectorAll('.detail-tab').forEach(b => b.classList.remove('active')); document.querySelectorAll('#details-modal > div > div[id^="tab-content-"]').forEach(c => c.classList.add('hidden'));
+            const btn = document.getElementById(`btn-tab-${tab}`); btn.classList.add('active'); const content = document.getElementById(`tab-content-${tab}`); content.classList.remove('hidden'); if(tab === 'similar') content.classList.add('grid'); else content.classList.add('flex');
+            const indicator = document.getElementById('tab-indicator'); indicator.style.width = btn.offsetWidth + 'px'; indicator.style.transform = `translateX(${btn.offsetLeft}px)`;
+            SpatialNav.scanAndFocus(false);
+        }
+
+        window.showMovieDetails = async function(id) {
+            currentDetailMovieId = id; const baseM = globalMovieData[id]; currentDetailType = baseM.is_tv ? 'tv' : 'movie';
+            document.getElementById('details-modal').classList.remove('hidden'); document.getElementById('details-modal').classList.add('flex');
+            document.getElementById('detail-backdrop').src = BACKDROP_URL + (baseM.backdrop_path || baseM.poster_path); document.getElementById('detail-title').innerText = baseM.title || baseM.name; document.getElementById('detail-overview').innerText = baseM.overview || "No description available."; document.getElementById('detail-metadata').innerHTML = "Loading...";
+
+            const actionRow = document.getElementById('action-row-icons');
+            actionRow.innerHTML = `<div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer hover:text-white transition" onclick="window.saveMovieToLibrary(currentDetailMovieId)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span class="text-[11px] font-medium">My List</span></div><div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer hover:text-white transition"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg><span class="text-[11px] font-medium">Rate</span></div><div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer hover:text-white transition" onclick="alert('Link Copied!')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg><span class="text-[11px] font-medium">Share</span></div>`;
+            if(currentDetailType === 'tv') { actionRow.innerHTML += `<div data-focusable="true" class="flex flex-col items-center gap-2 cursor-pointer hover:text-white transition" onclick="alert('Downloading Season 1')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span class="text-[11px] font-medium text-center leading-tight">Download<br>Season 1</span></div>`; document.getElementById('btn-tab-episodes').classList.remove('hidden'); window.switchDetailsTab('episodes'); } 
+            else { document.getElementById('btn-tab-episodes').classList.add('hidden'); window.switchDetailsTab('similar'); }
+
+            document.getElementById('tab-content-similar').innerHTML = ''; document.getElementById('tab-content-trailers').innerHTML = ''; document.getElementById('tab-content-episodes').innerHTML = '<div class="text-center py-10"><div class="animate-spin w-5 h-5 border-2 border-[#E50914] border-t-transparent rounded-full mx-auto"></div></div>';
+            SpatialNav.scanAndFocus();
+
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/${currentDetailType}/${id}?api_key=${API_KEY}&append_to_response=credits,similar,videos`); const fullData = await res.json();
+                const year = fullData.release_date ? fullData.release_date.split('-')[0] : (fullData.first_air_date ? fullData.first_air_date.split('-')[0] : '');
+                const runtime = fullData.runtime ? `${Math.floor(fullData.runtime/60)}h ${fullData.runtime%60}m` : (fullData.number_of_episodes ? `${fullData.number_of_episodes} Episodes` : '');
+                document.getElementById('detail-metadata').innerHTML = `${year ? `<span>${year}</span>` : ''} <span class="bg-gray-700/80 text-white px-1.5 py-0.5 rounded text-[11px] font-bold">16+</span> ${runtime ? `<span>${runtime}</span>` : ''} <span class="border border-gray-600 px-1 rounded text-[11px] font-bold text-gray-300">HD</span> <span class="flex items-center gap-1 text-[12px]"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2v20"></path></svg> Spatial Audio</span>`;
+                
+                let castStr = "Starring: "; if(fullData.credits && fullData.credits.cast) castStr += fullData.credits.cast.slice(0,3).map(c=>c.name).join(', '); document.getElementById('detail-cast').innerText = castStr + "... more"; document.getElementById('detail-top10-text').innerText = `#${Math.floor(Math.random()*10)+1} in ${currentDetailType==='movie'?'Movies':'TV Shows'} Today`;
+
+                let similarHTML = ""; if(fullData.similar && fullData.similar.results) { fullData.similar.results.slice(0, 12).forEach(m => { if(m.poster_path) { globalMovieData[m.id] = m; m.is_tv = currentDetailType === 'tv'; similarHTML += `<div data-focusable="true" class="movie-card cursor-pointer shadow-lg" onclick="window.showMovieDetails(${m.id})"><img src="${IMG_URL+m.poster_path}" class="w-full aspect-[2/3] object-cover"></div>`; } }); }
+                document.getElementById('tab-content-similar').innerHTML = similarHTML;
+
+                let trailersHTML = ""; if(fullData.videos && fullData.videos.results) { const trailers = fullData.videos.results.filter(v => v.site === 'YouTube').slice(0, 5); if(trailers.length > 0) { trailers.forEach(t => { trailersHTML += `<div data-focusable="true" class="w-full cursor-pointer group mb-2" onclick="window.open('https://www.youtube.com/watch?v=${t.key}', '_blank')"><div class="relative w-full aspect-video bg-gray-900 rounded-lg overflow-hidden mb-2 border border-white/10"><img src="https://img.youtube.com/vi/${t.key}/maxresdefault.jpg" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" onerror="this.src='${BACKDROP_URL+(baseM.backdrop_path)}'"><div class="absolute inset-0 flex items-center justify-center"><div class="bg-black/60 rounded-full p-4 border border-white/30"><svg width="32" height="32" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div></div></div><p class="text-white text-[15px] font-bold px-1">${t.type}: ${baseM.title || baseM.name}</p></div>`; }); } else trailersHTML = "<p class='text-gray-500 text-sm'>No trailers available.</p>"; }
+                document.getElementById('tab-content-trailers').innerHTML = trailersHTML;
+
+                if(currentDetailType === 'tv' && fullData.seasons) { const validSeason = fullData.seasons.find(s => s.season_number > 0) || fullData.seasons[0]; if(validSeason) window.fetchAndRenderEpisodes(id, validSeason.season_number); }
+                SpatialNav.scanAndFocus(false);
+            } catch(e) { console.log('Details fetch err', e); }
+        }
+
+        window.fetchAndRenderEpisodes = async function(tvId, seasonNum) {
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNum}?api_key=${API_KEY}`); const data = await res.json(); const container = document.getElementById('tab-content-episodes');
+                container.innerHTML = `<div class="flex justify-between items-center mb-2"><h3 class="text-white font-bold text-[17px]">${data.name || 'Season '+seasonNum}</h3><button data-focusable="true" class="bg-white/10 rounded-full p-1.5 header-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></button></div>`;
+                if(!data.episodes || data.episodes.length === 0) return container.innerHTML += '<p class="text-gray-500 text-sm">No episodes found.</p>';
+                data.episodes.reverse().forEach((ep, i) => { const img = ep.still_path ? BACKDROP_URL + ep.still_path : ''; const run = ep.runtime ? `${Math.floor(ep.runtime/60)}h ${ep.runtime%60}m` : '45m'; container.innerHTML += `<div class="flex flex-col gap-2.5 mb-6"><div class="flex gap-4"><div data-focusable="true" class="relative w-[140px] aspect-video rounded-md overflow-hidden flex-shrink-0 cursor-pointer border border-white/5 shadow-lg" onclick="window.playEpisode(${tvId}, ${seasonNum}, ${ep.episode_number})"><img src="${img}" class="w-full h-full object-cover opacity-80" onerror="this.src='https://via.placeholder.com/300x170/111/fff?text=Play'"><div class="absolute inset-0 bg-black/20 flex items-center justify-center"><div class="bg-black/60 rounded-full p-2.5 border border-white/30 backdrop-blur-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div></div>${i < 3 ? `<div class="absolute bottom-0 left-0 bg-[#E50914] text-white text-[10px] font-black px-1.5 py-0.5 rounded-tr">NEW EPISODE</div>` : ''}<div class="absolute bottom-0 left-0 h-1 bg-[#E50914]" style="width: ${Math.floor(Math.random() * 80 + 20)}%;"></div></div><div class="flex-1 flex justify-between items-start pt-1"><div><h4 class="text-white font-bold text-[15px] leading-tight mb-1.5">Ep. ${ep.episode_number} - ${ep.name}</h4><div class="flex gap-3 text-gray-400 text-[13px] font-medium"><span>${Math.floor(Math.random()*5)+1}d ago</span><span>${run}</span></div></div></div></div><p class="text-gray-300 text-[14px] leading-snug line-clamp-3 font-medium">${ep.overview || 'No description available for this episode.'}</p></div>`; });
+                SpatialNav.scanAndFocus(false);
+            } catch(e) {}
+        }
+
+        window.closeDetails = function() { document.getElementById('details-modal').classList.add('hidden'); document.getElementById('details-modal').classList.remove('flex'); SpatialNav.scanAndFocus(); }
+        window.playMovie = function(id) { if(!id) return; const m = globalMovieData[id]; window.addToHistory(id); document.getElementById('player-modal').classList.remove('hidden'); document.getElementById('player-modal').classList.add('flex'); document.getElementById('video-frame').src = (currentDetailType === 'tv' || m.is_tv) ? `https://autoembed.co/tv/tmdb/${m.id}-1-1` : `https://autoembed.co/movie/tmdb/${m.id}`; SpatialNav.scanAndFocus(); }
+        window.playEpisode = function(tvId, season, episode) { window.addToHistory(tvId); document.getElementById('player-modal').classList.remove('hidden'); document.getElementById('player-modal').classList.add('flex'); document.getElementById('video-frame').src = `https://autoembed.co/tv/tmdb/${tvId}-${season}-${episode}`; SpatialNav.scanAndFocus(); }
+        window.playHeroMovie = function() { window.playMovie(homeHeroMovieId); }
+        window.closePlayer = function() { document.getElementById('player-modal').classList.add('hidden'); document.getElementById('player-modal').classList.remove('flex'); document.getElementById('video-frame').src = ""; SpatialNav.scanAndFocus(); }
+        window.openMyListModal = function() { document.getElementById('my-list-modal').classList.remove('hidden'); document.getElementById('my-list-modal').classList.add('flex'); const grid = document.getElementById('my-list-grid'); grid.innerHTML = ''; myFavourites.forEach(m => { grid.innerHTML += `<div data-focusable="true" class="movie-card cursor-pointer relative shadow-lg border border-white/5" onclick="window.showMovieDetails(${m.id})"><img src="${IMG_URL+m.poster_path}" class="w-full aspect-[2/3] object-cover"><button onclick="event.stopPropagation(); window.removeFromLibrary(${m.id})" class="absolute top-2 right-2 bg-black/80 text-white rounded-full p-1.5 border border-white/20 backdrop-blur-md active:scale-95 hover:bg-[#E50914] transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>`; }); SpatialNav.scanAndFocus(); }
+        window.closeMyListModal = function() { document.getElementById('my-list-modal').classList.add('hidden'); document.getElementById('my-list-modal').classList.remove('flex'); SpatialNav.scanAndFocus(); }
+        window.saveMovieToLibrary = function(id) { const m = globalMovieData[id]; if(!m || myFavourites.find(x=>x.id===id)) return; myFavourites.push(m); localStorage.setItem('netfilla_favs', JSON.stringify(myFavourites)); alert("Added to My List"); }
+        window.saveHeroMovie = function() { window.saveMovieToLibrary(homeHeroMovieId); }
+        window.removeFromLibrary = function(id) { myFavourites = myFavourites.filter(x=>x.id!==id); localStorage.setItem('netfilla_favs', JSON.stringify(myFavourites)); window.openMyListModal(); }
+        window.clearFavourites = function() { if(confirm('Clear entire list?')){ myFavourites = []; localStorage.removeItem('netfilla_favs'); window.openMyListModal(); }}
+        window.openAccountSettingsModal = function() { window.updateAccountDisplay(); document.getElementById('account-settings-modal').classList.remove('hidden'); document.getElementById('account-settings-modal').classList.add('flex'); SpatialNav.scanAndFocus(); }
+        window.closeAccountSettingsModal = function() { document.getElementById('account-settings-modal').classList.add('hidden'); document.getElementById('account-settings-modal').classList.remove('flex'); SpatialNav.scanAndFocus(); }
+        window.updateAccountDisplay = function() { document.getElementById('acc-disp-email').innerText = currentUser.email; document.getElementById('acc-disp-phone').innerText = currentUser.phone; document.getElementById('acc-disp-plan').innerText = currentUser.plan || 'Free'; }
+        window.changeAccountDetail = function(field) { const newVal = prompt(`Enter new ${field}:`, field==='password'?'':currentUser[field]); if(newVal && newVal.trim() !== '') { if(field !== 'password') { currentUser[field] = newVal.trim(); localStorage.setItem('netfilla_user', JSON.stringify(currentUser)); if(window.syncToFirestore) window.syncToFirestore(); window.updateAccountDisplay(); } alert(`${field.charAt(0).toUpperCase() + field.slice(1)} updated!`); } }
+        window.openSubscriptionModal = function() { document.getElementById('subscription-modal').classList.remove('hidden'); document.getElementById('subscription-modal').classList.add('flex'); SpatialNav.scanAndFocus(); }
+        window.closeSubscriptionModal = function() { document.getElementById('subscription-modal').classList.add('hidden'); document.getElementById('subscription-modal').classList.remove('flex'); SpatialNav.scanAndFocus(); }
+        window.selectPlan = function(planName, price) { if(confirm(`Confirm upgrade to ${planName} for ${price}?`)) { currentUser.plan = planName; localStorage.setItem('netfilla_user', JSON.stringify(currentUser)); if(window.syncToFirestore) window.syncToFirestore(); window.updateAccountDisplay(); window.closeSubscriptionModal(); alert(`Successfully activated ${planName}!`); } }
+
+        /* ===================================================================
+           ANDROID TV / 10-FOOT UI SPATIAL NAVIGATION ENGINE
+           =================================================================== */
+        window.SpatialNav = {
+            currentFocus: null,
+            focusMap: new Map(), 
+            
+            getVisibleFocusables: function() {
+                const layers = ['#player-modal', '#details-modal', '#subscription-modal', '#account-settings-modal', '#my-list-modal', '#edit-profile-modal', '#pin-modal', '#profile-screen', '#auth-screen', '#intro-screen', '#main-app'];
+                let activeContainer = document.body;
+                for (let selector of layers) {
+                    const el = document.querySelector(selector);
+                    if (el && !el.classList.contains('hidden') && window.getComputedStyle(el).display !== 'none') {
+                        activeContainer = el; break;
+                    }
+                }
+                const all = Array.from(activeContainer.querySelectorAll('[data-focusable="true"]'));
+                return all.filter(el => { const rect = el.getBoundingClientRect(); const style = window.getComputedStyle(el); return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.opacity !== '0'; });
+            },
+
+            setFocus: function(element) {
+                if (!element) return;
+                if (this.currentFocus) { this.currentFocus.classList.remove('tv-focused'); this.currentFocus.blur(); }
+                this.currentFocus = element; this.currentFocus.classList.add('tv-focused');
+                if (this.currentFocus.tagName.toLowerCase() === 'input') { this.currentFocus.focus(); }
+                this.currentFocus.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                const activeContainer = this.currentFocus.closest('.fixed.flex') || document.getElementById('main-app');
+                if (activeContainer) this.focusMap.set(activeContainer.id, this.currentFocus);
+            },
+
+            scanAndFocus: function(reset = false) {
+                const focusables = this.getVisibleFocusables(); if (focusables.length === 0) return;
+                const activeContainer = focusables[0].closest('.fixed.flex') || document.getElementById('main-app'); let target = null;
+                if (!reset && activeContainer && this.focusMap.has(activeContainer.id)) { target = this.focusMap.get(activeContainer.id); if (!focusables.includes(target)) target = focusables[0]; } else { target = focusables[0]; }
+                this.setFocus(target);
+            },
+
+            move: function(direction) {
+                if (!this.currentFocus) { this.scanAndFocus(); return; }
+                const focusables = this.getVisibleFocusables(); if (!focusables.includes(this.currentFocus)) { this.scanAndFocus(); return; }
+                const currentRect = this.currentFocus.getBoundingClientRect(); let bestMatch = null; let minDistance = Infinity;
+
+                focusables.forEach(el => {
+                    if (el === this.currentFocus) return;
+                    const rect = el.getBoundingClientRect();
+                    const cx = currentRect.left + currentRect.width / 2; const cy = currentRect.top + currentRect.height / 2;
+                    const tx = rect.left + rect.width / 2; const ty = rect.top + rect.height / 2;
+                    let isValidDirection = false; let dx = Math.abs(tx - cx); let dy = Math.abs(ty - cy); let score = 0;
+
+                    switch (direction) {
+                        case 'ArrowRight': isValidDirection = tx > cx + 5; score = dx + (dy * 5); break;
+                        case 'ArrowLeft': isValidDirection = tx < cx - 5; score = dx + (dy * 5); break;
+                        case 'ArrowDown': isValidDirection = ty > cy + 5; score = dy + (dx * 5); break;
+                        case 'ArrowUp': isValidDirection = ty < cy - 5; score = dy + (dx * 5); break;
+                    }
+                    if (isValidDirection && score < minDistance) { minDistance = score; bestMatch = el; }
+                });
+                if (bestMatch) this.setFocus(bestMatch);
+            },
+
+            handleBack: function() {
+                const layers = [
+                    { id: 'player-modal', action: window.closePlayer },
+                    { id: 'details-modal', action: window.closeDetails },
+                    { id: 'subscription-modal', action: window.closeSubscriptionModal },
+                    { id: 'account-settings-modal', action: window.closeAccountSettingsModal },
+                    { id: 'my-list-modal', action: window.closeMyListModal },
+                    { id: 'edit-profile-modal', action: window.closeEditProfile },
+                    { id: 'pin-modal', action: window.closePinModal },
+                    { id: 'profile-screen', action: null } 
+                ];
+                for (let layer of layers) { const el = document.getElementById(layer.id); if (el && !el.classList.contains('hidden')) { if (layer.action) { layer.action(); return true; } else { return false; } } }
+                return false;
+            }
+        };
+
+        document.addEventListener('keydown', (e) => {
+            const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (keys.includes(e.key)) { e.preventDefault(); SpatialNav.move(e.key); }
+            if (e.key === 'Enter' || e.keyCode === 13) { if (SpatialNav.currentFocus) { e.preventDefault(); if(SpatialNav.currentFocus.tagName.toLowerCase() !== 'input') { SpatialNav.currentFocus.click(); } } }
+            if (e.key === 'Escape' || e.key === 'Backspace' || e.keyCode === 461 || e.keyCode === 10009) { if (SpatialNav.currentFocus && SpatialNav.currentFocus.tagName.toLowerCase() === 'input' && e.key === 'Backspace') return; if (SpatialNav.handleBack()) e.preventDefault(); }
+        });
+
+        document.addEventListener('mouseover', (e) => { const focusable = e.target.closest('[data-focusable="true"]'); if (focusable && SpatialNav.currentFocus !== focusable) { SpatialNav.setFocus(focusable); } });
+
+    </script>
+</body>
+</html>
