@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NetFilla TV - Premium Cinematic</title>
+    <!-- Tailwind & UI Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+        :root { --primary-red: #E50914; --bg-black: #050505; --focus-color: #ffffff; }
+        
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Outfit', sans-serif; background-color: var(--bg-black); color: #ffffff; overflow: hidden; -webkit-font-smoothing: antialiased; }
+        
+        /* Hide all scrollbars for clean TV look */
+        ::-webkit-scrollbar { display: none; }
+        * { -ms-overflow-style: none; scrollbar-width: none; -webkit-tap-highlight-color: transparent; outline: none !important; }
+        
+        /* SPATIAL NAVIGATION FOCUS STATES (THE MOST IMPORTANT PART FOR TV) */
+        .focusable { transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease; cursor: pointer; border: 3px solid transparent; }
+        
+        /* TV Focus Ring */
+        .focusable:focus, .focusable.tv-focused {
+            transform: scale(1.08);
+            border-color: var(--focus-color);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(255,255,255,0.2);
+            z-index: 50;
+        }
+
+        /* Specialized Focuses */
+        .category-btn.focusable:focus, .category-btn.tv-focused { background-color: #fff; color: #000; }
+        .sidebar-item.focusable:focus, .sidebar-item.tv-focused { background-color: rgba(255,255,255,0.1); border-color: transparent; transform: scale(1.05); color: white; }
+        .btn-primary.focusable:focus, .btn-primary.tv-focused { border-color: white; transform: scale(1.05); }
+
+        #main-app { display: flex; width: 100%; height: 100dvh; position: relative; overflow: hidden; }
+        
+        /* LEFT SIDEBAR (TV STYLE) */
+        #tv-sidebar { width: 90px; height: 100%; background: linear-gradient(to right, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 70%, transparent 100%); position: fixed; left: 0; top: 0; z-index: 100; display: flex; flex-direction: column; padding-top: 40px; transition: width 0.3s ease, background 0.3s ease; }
+        #tv-sidebar:focus-within, #tv-sidebar:hover { width: 300px; background: rgba(0,0,0,0.95); box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
+        .sidebar-text { opacity: 0; white-space: nowrap; margin-left: 20px; font-size: 1.2rem; font-weight: 600; transition: opacity 0.2s ease; color: #aaa; }
+        #tv-sidebar:focus-within .sidebar-text, #tv-sidebar:hover .sidebar-text { opacity: 1; }
+        .sidebar-item { display: flex; items-center: center; padding: 15px 25px; margin: 10px 10px; border-radius: 12px; color: #888; }
+        .sidebar-item.active { color: white; }
+        .sidebar-item.active svg { stroke: var(--primary-red); filter: drop-shadow(0 0 8px var(--primary-red)); }
+
+        /* CONTENT AREA */
+        #content-area { margin-left: 90px; flex: 1; height: 100%; overflow-y: auto; overflow-x: hidden; position: relative; scroll-behavior: smooth; }
+        .app-view { display: none; width: 100%; min-height: 100%; padding-bottom: 50px; }
+        .app-view.active { display: block; animation: fadeIn 0.4s ease; }
+        
+        /* TV Grids & Cards */
+        .movie-card { border-radius: 12px; overflow: hidden; background: #111; aspect-ratio: 2/3; position: relative; }
+        .movie-card img { width: 100%; height: 100%; object-fit: cover; }
+        .card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 50%); opacity: 0; transition: opacity 0.2s; display: flex; align-items: flex-end; padding: 15px; }
+        .movie-card:focus .card-overlay, .movie-card.tv-focused .card-overlay, .movie-card:hover .card-overlay { opacity: 1; }
+        
+        .tv-row { display: flex; gap: 20px; overflow-x: auto; padding: 20px 0; scroll-behavior: smooth; margin: 0 40px; }
+        .tv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 25px; padding: 20px 40px 60px 40px; }
+
+        .category-btn { background: rgba(255,255,255,0.1); color: #ccc; border: 2px solid transparent; border-radius: 30px; padding: 10px 25px; font-size: 1.1rem; font-weight: 600; white-space: nowrap; }
+        .category-btn.active { background: white; color: black; }
+
+        /* HERO SECTION */
+        .hero-banner { position: relative; width: 100%; height: 75vh; background: #000; }
+        .hero-gradient { position: absolute; inset: 0; background: linear-gradient(to right, #050505 0%, transparent 50%), linear-gradient(to top, #050505 0%, transparent 40%); }
+        .hero-content { position: absolute; bottom: 10%; left: 60px; max-w: 800px; z-index: 10; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Modals for TV */
+        .tv-modal { background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); }
+        .btn-primary { background: #E50914; color: white; padding: 15px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; display: inline-flex; align-items: center; gap: 10px; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; padding: 15px 40px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; display: inline-flex; align-items: center; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- 3D INTRO (Kept lightweight) -->
+    <div id="intro-screen" class="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-[#000]">
+        <div id="canvas-container" class="absolute inset-0 z-0"></div>
+        <div class="relative z-10 flex flex-col items-center text-center px-6">
+            <h1 class="text-7xl font-black mb-4 text-[#E50914] uppercase tracking-widest drop-shadow-2xl">NetFilla</h1>
+            <p class="text-xl text-gray-400 font-medium mb-12 uppercase tracking-widest">Android TV Edition</p>
+            <button id="enter-btn" class="focusable btn-primary shadow-[0_0_30px_rgba(229,9,20,0.5)]">
+                ENTER STUDIO <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- CUSTOM ALERT -->
+    <div id="custom-alert" class="hidden fixed inset-0 z-[900] tv-modal flex-col items-center justify-center px-4">
+        <div class="bg-[#111] border border-white/20 rounded-2xl p-10 w-full max-w-lg text-center shadow-2xl">
+            <h2 id="custom-alert-title" class="text-3xl font-bold text-white mb-4">Title</h2>
+            <p id="custom-alert-message" class="text-gray-400 text-lg mb-10">Message.</p>
+            <button onclick="closeCustomAlert()" class="focusable btn-secondary w-full justify-center" id="alert-dismiss-btn">DISMISS</button>
+        </div>
+    </div>
+
+    <!-- PROFILE GATE (TV STYLE) -->
+    <div id="profile-gate" class="hidden fixed inset-0 z-[800] bg-[#050505] flex-col items-center justify-center">
+        <h1 class="text-5xl font-black text-white mb-16 tracking-tight">Who's watching?</h1>
+        <div class="flex gap-10 justify-center items-center" id="gate-profiles-container">
+            <!-- JS populated -->
+        </div>
+    </div>
+
+    <!-- PIN VERIFY MODAL -->
+    <div id="pin-verify-modal" class="hidden fixed inset-0 z-[850] tv-modal flex-col items-center justify-center">
+        <div class="bg-[#111] border border-white/20 rounded-2xl p-10 w-full max-w-md text-center shadow-2xl">
+            <h2 class="text-3xl font-bold text-white mb-4">Profile Locked</h2>
+            <p class="text-gray-400 text-lg mb-8">Enter your 4-digit PIN</p>
+            <input type="password" id="verify-profile-pin" maxlength="4" class="focusable w-full bg-[#222] text-center text-white py-4 rounded-xl mb-6 text-3xl tracking-[1em] outline-none" readonly>
+            <!-- TV OS Keyboard bypass: Clickable numpad for TV remote -->
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(1)">1</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(2)">2</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(3)">3</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(4)">4</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(5)">5</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(6)">6</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(7)">7</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(8)">8</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(9)">9</button>
+                <button class="focusable bg-red-500/20 text-red-500 p-4 rounded-lg text-xl font-bold hover:bg-red-500/40" onclick="delPinNum()">X</button>
+                <button class="focusable bg-white/10 p-4 rounded-lg text-xl font-bold hover:bg-white/30" onclick="addPinNum(0)">0</button>
+                <button class="focusable bg-green-500/20 text-green-500 p-4 rounded-lg text-xl font-bold hover:bg-green-500/40" onclick="submitPinVerify()">GO</button>
+            </div>
+            <button onclick="closePinVerify()" class="focusable text-gray-500 hover:text-white mt-2">Cancel</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-app" class="hidden">
+        
+        <!-- LEFT SIDEBAR NAV (TV UI) -->
+        <nav id="tv-sidebar">
+            <div class="mb-10 px-5 flex items-center">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E50914" stroke-width="4"><path d="M4 4L9 20L15 4L20 20"/></svg>
+            </div>
+            
+            <div onclick="switchTab('search')" id="nav-search" class="sidebar-item focusable" tabindex="0">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <span class="sidebar-text">Search</span>
+            </div>
+            <div onclick="switchTab('home')" id="nav-home" class="sidebar-item focusable active" tabindex="0">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                <span class="sidebar-text">Home</span>
+            </div>
+            <div onclick="switchTab('movies')" id="nav-movies" class="sidebar-item focusable" tabindex="0">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line></svg>
+                <span class="sidebar-text">Movies</span>
+            </div>
+            <div onclick="switchTab('series')" id="nav-series" class="sidebar-item focusable" tabindex="0">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                <span class="sidebar-text">Series</span>
+            </div>
+            <div onclick="switchTab('profile')" id="nav-profile" class="sidebar-item focusable mt-auto mb-10" tabindex="0">
+                <div class="w-8 h-8 rounded overflow-hidden border-2 border-transparent"><img id="nav-avatar" src="" class="w-full h-full object-cover"></div>
+                <span class="sidebar-text">Settings</span>
+            </div>
+        </nav>
+
+        <!-- CONTENT AREA -->
+        <div id="content-area">
+            
+            <!-- 1. HOME -->
+            <main id="view-home" class="app-view active !pt-0">
+                <div class="hero-banner">
+                    <img id="home-hero-img" src="" class="w-full h-full object-cover opacity-60">
+                    <div class="hero-gradient"></div>
+                    <div class="hero-content">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" class="h-6 mb-4 opacity-80" alt="N">
+                        <h2 id="home-hero-title" class="text-6xl font-black mb-6 text-white drop-shadow-2xl">Loading...</h2>
+                        <p id="home-hero-desc" class="text-xl text-gray-300 mb-8 max-w-2xl line-clamp-3">Description loading...</p>
+                        <div class="flex gap-4">
+                            <button onclick="playHeroMovie('home')" class="focusable btn-primary"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Play</button>
+                            <button onclick="showMovieDetails(homeHeroMovieId)" class="focusable btn-secondary"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> More Info</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Continue Watching Row -->
+                <div id="continue-watching-container" class="hidden mt-10">
+                    <h2 class="text-2xl font-bold text-white px-10 mb-2">Continue Watching</h2>
+                    <div id="history-grid" class="tv-row"></div>
+                </div>
+
+                <!-- Trending Row -->
+                <div class="mt-10">
+                    <h2 class="text-2xl font-bold text-white px-10 mb-2">Trending Now</h2>
+                    <div id="home-grid" class="tv-row"></div>
+                </div>
+                
+                <!-- Action Row -->
+                <div class="mt-6 mb-10">
+                    <h2 class="text-2xl font-bold text-white px-10 mb-2">Action & Adventure</h2>
+                    <div id="home-action-grid" class="tv-row"></div>
+                </div>
+            </main>
+
+            <!-- 2. MOVIES -->
+            <main id="view-movies" class="app-view">
+                <div class="px-10 mb-8">
+                    <h1 class="text-5xl font-black text-white tracking-tight mb-8">Movies</h1>
+                    <div class="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                        <button onclick="fetchCategory('hollywood', this, 'movies')" class="focusable category-btn active">Hollywood</button>
+                        <button onclick="fetchCategory('bollywood', this, 'movies')" class="focusable category-btn">Bollywood</button>
+                        <button onclick="fetchCategory('pakistani', this, 'movies')" class="focusable category-btn">Pakistani</button>
+                        <button onclick="fetchCategory('korean', this, 'movies')" class="focusable category-btn">Korean</button>
+                        <button onclick="fetchCategory('action', this, 'movies')" class="focusable category-btn">Action</button>
+                    </div>
+                </div>
+                <h2 id="movies-title" class="text-2xl font-bold text-white px-10 mb-2">Hollywood</h2>
+                <div id="movies-grid" class="tv-grid"></div>
+            </main>
+
+            <!-- 3. SERIES -->
+            <main id="view-series" class="app-view">
+                <div class="px-10 mb-8">
+                    <h1 class="text-5xl font-black text-white tracking-tight mb-8">TV Series</h1>
+                    <div class="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                        <button onclick="fetchCategory('seriesTrending', this, 'series')" class="focusable category-btn active">Trending</button>
+                        <button onclick="fetchCategory('seriesNetflix', this, 'series')" class="focusable category-btn">Netflix</button>
+                        <button onclick="fetchCategory('seriesPrime', this, 'series')" class="focusable category-btn">Prime Video</button>
+                        <button onclick="fetchCategory('seriesDisney', this, 'series')" class="focusable category-btn">Disney+</button>
+                        <button onclick="fetchCategory('seriesHBO', this, 'series')" class="focusable category-btn">HBO Max</button>
+                    </div>
+                </div>
+                <h2 id="series-title" class="text-2xl font-bold text-white px-10 mb-2">Trending</h2>
+                <div id="series-grid" class="tv-grid"></div>
+            </main>
+
+            <!-- SEARCH -->
+            <main id="view-search" class="app-view">
+                <div class="px-10 mb-8">
+                    <div class="flex items-center bg-[#222] border border-white/20 rounded-2xl p-4 w-full max-w-3xl focus-within:border-white focus-within:bg-[#333] transition-colors">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="search-input" class="focusable bg-transparent border-none text-white text-2xl w-full ml-4 outline-none placeholder-gray-500" placeholder="Search movies, shows...">
+                    </div>
+                </div>
+                <div id="search-grid" class="tv-grid"></div>
+            </main>
+
+            <!-- PROFILE / SETTINGS -->
+            <main id="view-profile" class="app-view">
+                <div class="px-10 flex items-center justify-between mb-16">
+                    <h1 class="text-5xl font-black text-white">Settings</h1>
+                </div>
+                
+                <div class="flex flex-row gap-16 px-10">
+                    <!-- Left: Profiles -->
+                    <div class="flex-1 bg-[#111] p-10 rounded-3xl border border-white/10">
+                        <h2 class="text-2xl font-bold text-gray-400 mb-8 uppercase tracking-widest">Profiles</h2>
+                        <div class="flex flex-wrap gap-8" id="profile-management-container">
+                            <!-- JS Populated -->
+                        </div>
+                    </div>
+                    
+                    <!-- Right: App Settings -->
+                    <div class="flex-[1.5] flex flex-col gap-4">
+                        <button class="focusable bg-[#111] p-6 rounded-2xl border border-white/10 flex items-center justify-between hover:bg-[#222]" onclick="window.showCustomAlert('Account', 'Account settings are managed via mobile app.', 'success')">
+                            <div class="flex items-center gap-6"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> <span class="text-2xl font-bold text-white">Account Info</span></div>
+                        </button>
+                        <button class="focusable bg-[#111] p-6 rounded-2xl border border-white/10 flex items-center justify-between hover:bg-[#222]" onclick="window.showCustomAlert('Premium', 'Upgrade to Premium for 4K.', 'success')">
+                            <div class="flex items-center gap-6"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> <span class="text-2xl font-bold text-yellow-500">Premium Plan</span></div>
+                        </button>
+                        <button class="focusable bg-[#111] p-6 rounded-2xl border border-white/10 flex items-center justify-between hover:bg-red-900/50 mt-10" onclick="location.reload()">
+                            <div class="flex items-center gap-6"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E50914" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> <span class="text-2xl font-bold text-[#E50914]">Exit App</span></div>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- DETAILS MODAL (TV STYLE OVERLAY) -->
+    <div id="details-modal" class="hidden fixed inset-0 z-[600] bg-[#000] flex-col">
+        <div class="absolute inset-0 z-0">
+            <img id="detail-backdrop" src="" class="w-full h-full object-cover opacity-40">
+            <div class="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+        </div>
+        
+        <div class="relative z-10 flex flex-col justify-center h-full px-[100px] max-w-5xl">
+            <h2 id="detail-title" class="text-6xl font-black text-white mb-4 drop-shadow-2xl">Title</h2>
+            
+            <div class="flex items-center gap-4 text-lg font-bold mb-6 text-gray-300">
+                <span class="text-green-500">98% Match</span>
+                <span class="border border-gray-500 px-2 rounded">HD</span>
+                <span id="detail-rating">⭐ 8.5</span>
+            </div>
+
+            <p id="detail-overview" class="text-xl text-gray-300 mb-10 line-clamp-4 leading-relaxed">Description...</p>
+            
+            <div class="flex gap-5 mb-10">
+                <button onclick="playMovie(currentDetailMovieId)" id="detail-play-btn" class="focusable btn-primary px-10 py-4 text-xl"><svg width="28" height="28" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Play</button>
+                <button onclick="saveMovieToLibrary(currentDetailMovieId)" class="focusable btn-secondary px-8 py-4 text-xl"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg> My List</button>
+                <button onclick="closeDetails()" class="focusable btn-secondary px-8 py-4 text-xl"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Close</button>
+            </div>
+
+            <!-- TV Controls (Seasons) -->
+            <div id="tv-controls" class="hidden flex-col gap-4 max-w-md bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-md">
+                <h3 class="text-white font-bold text-lg">Select Episode</h3>
+                <div class="flex gap-4">
+                    <select id="season-select" onchange="loadEpisodes(currentDetailMovieId, this.value)" class="focusable bg-black text-white text-lg rounded px-4 py-2 w-1/3 border border-white/20 outline-none"></select>
+                    <select id="episode-select" class="focusable bg-black text-white text-lg rounded px-4 py-2 w-2/3 border border-white/20 outline-none"></select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLAYER MODAL -->
+    <div id="player-modal" class="hidden fixed inset-0 z-[1000] bg-black flex flex-col">
+        <div class="absolute top-10 left-10 z-50 flex gap-4 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity" id="player-controls">
+            <button onclick="closePlayer()" class="focusable bg-black/60 text-white p-4 rounded-full border border-white/20 backdrop-blur-md" id="player-back-btn">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+            <select id="server-select-top" onchange="changeServer(this.value)" class="focusable bg-black/60 text-white border border-white/20 rounded-full px-6 py-2 text-lg font-bold backdrop-blur-md outline-none">
+                <option value="autoembed">Server 1 (Default)</option>
+                <option value="vidlink">Server 2 (No Ads)</option>
+                <option value="embedsu">Server 3 (Fast HD)</option>
+            </select>
+        </div>
+        <iframe id="video-frame" class="w-full h-full bg-black" src="" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <!-- TV ENGINE & LOGIC -->
+    <script>
+        // ----------------------------------------------------
+        // 1. DATA & STATE MANAGEMENT
+        // ----------------------------------------------------
+        function getStorage(k, def) { try { return localStorage.getItem(k) ? JSON.parse(localStorage.getItem(k)) : def; } catch(e) { return def; } }
+        function setStorage(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+
+        const API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb"; 
+        const IMG_URL = "https://image.tmdb.org/t/p/w500"; 
+        const BACKDROP_URL = "https://image.tmdb.org/t/p/w1280";
+        
+        window.endpoints = { 
+            trending: `https://api.themoviedb.org/3/trending/all/day?api_key=${API_KEY}`, 
+            action: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_genres=28&sort_by=popularity.desc`,
+            hollywood: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=en&sort_by=popularity.desc`, 
+            bollywood: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=hi&sort_by=popularity.desc`, 
+            pakistani: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=ur&sort_by=popularity.desc`,
+            korean: `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=ko&sort_by=popularity.desc`,
+            seriesTrending: `https://api.themoviedb.org/3/trending/tv/day?api_key=${API_KEY}`, 
+            seriesNetflix: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_networks=213&sort_by=popularity.desc`,
+            seriesPrime: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_networks=1024&sort_by=popularity.desc`,
+            seriesDisney: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_networks=2739&sort_by=popularity.desc`,
+            seriesApple: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_networks=2552&sort_by=popularity.desc`,
+            seriesHulu: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_networks=453&sort_by=popularity.desc`,
+            seriesHBO: `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_networks=49|3186&sort_by=popularity.desc`
+        };
+
+        const globalMovieData = {}; let currentDetailMovieId = null; let currentPlayingMovieId = null; let homeHeroMovieId = null; 
+        const DEFAULT_AVATAR = "https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg";
+        
+        let watchHistory = [];
+        window.savedProfiles = getStorage('netfilla_profiles', [ 
+            { id: 1, name: 'Family', avatarUrl: DEFAULT_AVATAR, pin: "" },
+            { id: 2, name: 'Kids', avatarUrl: "https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg", pin: "" }
+        ]); 
+        let activeProfileId = parseInt(localStorage.getItem('netfilla_active_profile')) || window.savedProfiles[0].id; 
+        
+        // ----------------------------------------------------
+        // 2. TV SPATIAL NAVIGATION ENGINE (D-PAD LOGIC)
+        // ----------------------------------------------------
+        let currentFocus = null;
+
+        function getFocusableElements() {
+            return Array.from(document.querySelectorAll('.focusable')).filter(el => {
+                const rect = el.getBoundingClientRect();
+                const style = window.getComputedStyle(el);
+                // Must be visible on screen or scrollable container, and not inside a hidden modal
+                return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.opacity !== '0' && !el.closest('.hidden');
+            });
+        }
+
+        function setFocus(el) {
+            if (!el) return;
+            if (currentFocus) currentFocus.classList.remove('tv-focused');
+            currentFocus = el;
+            el.classList.add('tv-focused');
+            el.focus();
+            
+            // TV Smooth Auto-Scroll logic
+            const rect = el.getBoundingClientRect();
+            const container = el.closest('.tv-row, .tv-grid, #content-area, .overflow-y-auto');
+            if (container) {
+                // If it's a horizontal row
+                if (container.classList.contains('tv-row') || container.classList.contains('overflow-x-auto')) {
+                    const cRect = container.getBoundingClientRect();
+                    if (rect.right > cRect.right || rect.left < cRect.left) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
+                } else {
+                    // Vertical container
+                    const viewHeight = window.innerHeight;
+                    if (rect.bottom > viewHeight - 100 || rect.top < 100) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Backspace'];
+            if (!keys.includes(e.key)) return;
+
+            // Handle Clicks
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentFocus) currentFocus.click();
+                return;
+            }
+
+            // Handle Back Button (TV remote Back)
+            if (e.key === 'Escape' || e.key === 'Backspace') {
+                e.preventDefault();
+                if (!document.getElementById('player-modal').classList.contains('hidden')) { closePlayer(); return; }
+                if (!document.getElementById('details-modal').classList.contains('hidden')) { closeDetails(); return; }
+                if (!document.getElementById('custom-alert').classList.contains('hidden')) { closeCustomAlert(); return; }
+                if (!document.getElementById('pin-verify-modal').classList.contains('hidden')) { closePinVerify(); return; }
+                // If in app, focus sidebar
+                if (!document.getElementById('main-app').classList.contains('hidden')) { setFocus(document.getElementById('nav-home')); return; }
+                return;
+            }
+
+            e.preventDefault(); // Stop default browser scroll
+
+            const focusables = getFocusableElements();
+            if (focusables.length === 0) return;
+
+            // If nothing is focused, focus the first item
+            if (!currentFocus || !focusables.includes(currentFocus)) {
+                setFocus(focusables[0]);
+                return;
+            }
+
+            // Find closest element in the pressed direction
+            const currentRect = currentFocus.getBoundingClientRect();
+            const currentCenter = { x: currentRect.left + currentRect.width/2, y: currentRect.top + currentRect.height/2 };
+            
+            let bestMatch = null;
+            let minDistance = Infinity;
+
+            focusables.forEach(target => {
+                if (target === currentFocus) return;
+                const targetRect = target.getBoundingClientRect();
+                const targetCenter = { x: targetRect.left + targetRect.width/2, y: targetRect.top + targetRect.height/2 };
+                
+                let isValidDirection = false;
+                let primaryDist = 0; let secondaryDist = 0;
+
+                if (e.key === 'ArrowRight' && targetCenter.x > currentCenter.x + 10) { 
+                    isValidDirection = true; primaryDist = targetCenter.x - currentCenter.x; secondaryDist = Math.abs(targetCenter.y - currentCenter.y);
+                } else if (e.key === 'ArrowLeft' && targetCenter.x < currentCenter.x - 10) { 
+                    isValidDirection = true; primaryDist = currentCenter.x - targetCenter.x; secondaryDist = Math.abs(targetCenter.y - currentCenter.y);
+                } else if (e.key === 'ArrowDown' && targetCenter.y > currentCenter.y + 10) { 
+                    isValidDirection = true; primaryDist = targetCenter.y - currentCenter.y; secondaryDist = Math.abs(targetCenter.x - currentCenter.x);
+                } else if (e.key === 'ArrowUp' && targetCenter.y < currentCenter.y - 10) { 
+                    isValidDirection = true; primaryDist = currentCenter.y - targetCenter.y; secondaryDist = Math.abs(targetCenter.x - currentCenter.x);
+                }
+
+                if (isValidDirection) {
+                    // Weight primary axis heavily over secondary to ensure straight lines
+                    const distance = (primaryDist * 1) + (secondaryDist * 5); 
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestMatch = target;
+                    }
+                }
+            });
+
+            if (bestMatch) setFocus(bestMatch);
+        });
+
+        // Allow mouse hover to take over focus seamlessly
+        document.addEventListener('mousemove', (e) => {
+            const target = e.target.closest('.focusable');
+            if (target && target !== currentFocus) {
+                if(currentFocus) currentFocus.classList.remove('tv-focused');
+                currentFocus = target;
+                target.classList.add('tv-focused');
+            }
+        });
+
+        // ----------------------------------------------------
+        // 3. UI LOGIC & FLOW
+        // ----------------------------------------------------
+        document.getElementById('enter-btn').addEventListener('click', () => { 
+            document.getElementById('intro-screen').style.display='none'; 
+            showProfileGate(); 
+        });
+
+        window.showCustomAlert = function(t, m, type = 'error') { 
+            document.getElementById('custom-alert-title').innerText = t; 
+            document.getElementById('custom-alert-message').innerText = m; 
+            const mObj = document.getElementById('custom-alert');
+            mObj.classList.remove('hidden'); mObj.classList.add('flex'); 
+            setTimeout(() => setFocus(document.getElementById('alert-dismiss-btn')), 100);
+        }
+        window.closeCustomAlert = function() { 
+            document.getElementById('custom-alert').classList.add('hidden'); document.getElementById('custom-alert').classList.remove('flex'); 
+        }
+
+        /* PROFILE GATE */
+        window.showProfileGate = function() {
+            document.getElementById('main-app').classList.add('hidden');
+            const pg = document.getElementById('profile-gate');
+            pg.classList.remove('hidden'); pg.classList.add('flex');
+            
+            const container = document.getElementById('gate-profiles-container');
+            container.innerHTML = "";
+            window.savedProfiles.forEach(p => {
+                const lock = p.pin ? `<div class="absolute bottom-2 right-2 bg-black p-2 rounded-full border border-white/20"><svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>` : "";
+                container.innerHTML += `
+                <div class="focusable flex flex-col items-center gap-4 group p-4 rounded-xl" onclick="handleProfileSelect(${p.id})">
+                    <div class="w-[180px] h-[180px] rounded-2xl overflow-hidden shadow-2xl relative">
+                        <img src="${p.avatarUrl}" class="w-full h-full object-cover">
+                        ${lock}
+                    </div>
+                    <span class="text-gray-400 font-bold text-2xl group-hover:text-white transition-colors">${p.name}</span>
+                </div>`;
+            });
+            setTimeout(() => setFocus(container.querySelector('.focusable')), 100);
+        }
+
+        window.currentPinProfileId = null;
+        let pinInput = "";
+        window.handleProfileSelect = function(id) {
+            const p = window.savedProfiles.find(x => x.id === id);
+            if (p.pin) {
+                window.currentPinProfileId = id; pinInput = "";
+                document.getElementById('verify-profile-pin').value = '';
+                document.getElementById('pin-verify-modal').classList.remove('hidden'); document.getElementById('pin-verify-modal').classList.add('flex');
+                setTimeout(() => setFocus(document.querySelector('#pin-verify-modal .focusable')), 100);
+            } else enterAppWithProfile(id);
+        }
+        
+        window.addPinNum = function(num) { 
+            if(pinInput.length < 4) { pinInput += num; document.getElementById('verify-profile-pin').value = pinInput; }
+            if(pinInput.length === 4) submitPinVerify();
+        }
+        window.delPinNum = function() { pinInput = pinInput.slice(0, -1); document.getElementById('verify-profile-pin').value = pinInput; }
+        window.closePinVerify = function() { document.getElementById('pin-verify-modal').classList.add('hidden'); document.getElementById('pin-verify-modal').classList.remove('flex'); setFocus(document.querySelector('#gate-profiles-container .focusable')); }
+        window.submitPinVerify = function() {
+            const p = window.savedProfiles.find(x => x.id === window.currentPinProfileId);
+            if (p.pin === pinInput) { closePinVerify(); enterAppWithProfile(p.id); } 
+            else { window.showCustomAlert("Incorrect PIN", "Please try again.", "error"); pinInput=""; document.getElementById('verify-profile-pin').value=""; }
+        }
+
+        /* MAIN APP ENTER */
+        window.enterAppWithProfile = function(id) {
+            activeProfileId = id; 
+            const profile = window.savedProfiles.find(p => p.id === activeProfileId);
+            document.getElementById('nav-avatar').src = profile.avatarUrl; 
+            localStorage.setItem('netfilla_active_profile', activeProfileId); 
+            
+            document.getElementById('profile-gate').classList.add('hidden'); document.getElementById('profile-gate').classList.remove('flex');
+            document.getElementById('main-app').classList.remove('hidden');
+            
+            renderProfileManagement();
+            loadHistory();
+            fetchMovies(window.endpoints.trending, 'home-grid', 'home');
+            fetchMovies(window.endpoints.action, 'home-action-grid', null);
+            
+            setTimeout(() => setFocus(document.getElementById('nav-home')), 200);
+        }
+
+        /* TAB SWITCHING */
+        window.switchTab = function(tabId) { 
+            document.querySelectorAll('.sidebar-item').forEach(n => n.classList.remove('active')); 
+            document.getElementById(`nav-${tabId}`).classList.add('active'); 
+            
+            document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active')); 
+            document.getElementById(`view-${tabId}`).classList.add('active'); 
+            document.getElementById('content-area').scrollTop = 0; // Reset scroll
+            
+            if (tabId === 'home') loadHistory();
+            if (tabId === 'search' && document.getElementById('search-grid').innerHTML === '') fetchMovies(window.endpoints.trending, 'search-grid', null); 
+            if (tabId === 'series' && document.getElementById('series-grid').innerHTML === '') fetchMovies(window.endpoints.seriesTrending, 'series-grid', null); 
+            if (tabId === 'movies' && document.getElementById('movies-grid').innerHTML === '') fetchMovies(window.endpoints.hollywood, 'movies-grid', null);
+            
+            // Set focus to the main content of the new tab
+            setTimeout(() => {
+                const firstItem = document.querySelector(`#view-${tabId} .focusable`);
+                if(firstItem) setFocus(firstItem);
+            }, 100);
+        }
+
+        /* DATA FETCHING & RENDERING */
+        window.fetchMovies = async function(url, targetGridId, heroPrefix = null) {
+            const grid = document.getElementById(targetGridId); 
+            grid.innerHTML = `<p class="text-gray-500 col-span-full">Loading...</p>`; 
+            try { 
+                const res = await fetch(url); 
+                const data = await res.json(); 
+                
+                grid.innerHTML = "";
+                let movies = data.results;
+                if(!movies || movies.length===0) return; 
+
+                // Setup Hero
+                if(heroPrefix && movies.length > 5) { 
+                    const m = movies[0];
+                    document.getElementById(`${heroPrefix}-hero-img`).src = BACKDROP_URL + m.backdrop_path; 
+                    document.getElementById(`${heroPrefix}-hero-title`).innerText = m.title || m.name; 
+                    document.getElementById(`${heroPrefix}-hero-desc`).innerText = m.overview; 
+                    homeHeroMovieId = m.id;
+                    globalMovieData[m.id] = { ...m, is_tv: !!m.first_air_date || !!m.name };
+                    movies = movies.slice(1); 
+                }
+
+                // Render Cards
+                movies.forEach((m) => { 
+                    if(!m.poster_path) return; 
+                    m.is_tv = !!m.first_air_date || !!m.name; 
+                    globalMovieData[m.id] = m; 
+                    // Add focusable and tabindex to make it D-pad accessible
+                    grid.innerHTML += `
+                    <div class="movie-card focusable flex-shrink-0 min-w-[200px]" tabindex="0" onclick="showMovieDetails(${m.id})">
+                        <img src="${IMG_URL + m.poster_path}">
+                        <div class="card-overlay"><p class="text-white text-sm font-bold truncate w-full">${m.title || m.name}</p></div>
+                    </div>`; 
+                });
+            } catch (error) { 
+                grid.innerHTML = `<p class="text-red-500">Failed to load content.</p>`; 
+            } 
+        }
+
+        window.fetchCategory = function(k, btn, viewPrefix) { 
+            document.querySelectorAll(`#view-${viewPrefix} .category-btn`).forEach(b => b.classList.remove('active')); 
+            btn.classList.add('active'); 
+            document.getElementById(`${viewPrefix}-title`).innerHTML = btn.innerText; 
+            fetchMovies(window.endpoints[k], `${viewPrefix}-grid`, null); 
+        }
+
+        let searchTimeoutApp = null; 
+        document.getElementById('search-input').addEventListener('input', function(e) { 
+            clearTimeout(searchTimeoutApp); const q = e.target.value.trim(); 
+            if(q.length > 0) { 
+                searchTimeoutApp = setTimeout(() => { window.fetchMovies(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(q)}`, 'search-grid', null); }, 600); 
+            } 
+        });
+
+        /* HISTORY LOGIC */
+        window.loadHistory = function() {
+            watchHistory = getStorage(`netfilla_history_${activeProfileId}`, []);
+            const container = document.getElementById('continue-watching-container');
+            const grid = document.getElementById('history-grid');
+            if(watchHistory.length > 0) {
+                container.classList.remove('hidden');
+                grid.innerHTML = "";
+                watchHistory.forEach(m => {
+                    grid.innerHTML += `
+                    <div class="movie-card focusable flex-shrink-0 min-w-[300px] aspect-video" tabindex="0" onclick="showMovieDetails(${m.id})">
+                        <img src="${BACKDROP_URL + (m.backdrop_path || m.poster_path)}">
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition"><svg width="40" height="40" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div>
+                        <div class="absolute bottom-0 left-0 h-1.5 bg-[#E50914]" style="width: ${Math.floor(Math.random() * 50 + 30)}%;"></div>
+                        <div class="card-overlay"><p class="text-white text-sm font-bold truncate w-full">${m.title || m.name}</p></div>
+                    </div>`;
+                });
+            } else { container.classList.add('hidden'); }
+        }
+
+        window.addToHistory = function(id) {
+            const m = globalMovieData[id]; if(!m) return;
+            watchHistory = watchHistory.filter(x => x.id !== id);
+            watchHistory.unshift(m); if(watchHistory.length > 10) watchHistory.pop();
+            setStorage(`netfilla_history_${activeProfileId}`, watchHistory);
+        }
+
+        /* DETAILS & PLAYER */
+        window.showMovieDetails = async function(id) {
+            currentDetailMovieId = id; const m = globalMovieData[id]; 
+            document.getElementById('detail-backdrop').src = BACKDROP_URL + (m.backdrop_path||m.poster_path); 
+            document.getElementById('detail-title').innerText = m.title || m.name; 
+            document.getElementById('detail-overview').innerText = m.overview;
+            
+            const tvC = document.getElementById('tv-controls'); 
+            if(m.is_tv){ tvC.classList.remove('hidden'); tvC.classList.add('flex'); window.loadSeasons(id); } 
+            else { tvC.classList.add('hidden'); tvC.classList.remove('flex'); }
+            
+            document.getElementById('details-modal').classList.remove('hidden'); document.getElementById('details-modal').classList.add('flex');
+            
+            // Auto focus Play Button
+            setTimeout(() => setFocus(document.getElementById('detail-play-btn')), 100);
+        }
+        window.closeDetails = function() { 
+            document.getElementById('details-modal').classList.add('hidden'); document.getElementById('details-modal').classList.remove('flex'); 
+            // Return focus to main app
+            setFocus(document.querySelector('.app-view.active .focusable'));
+        }
+
+        window.loadSeasons = async function(tvId) { try { const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}?api_key=${API_KEY}`); const data = await res.json(); const sel = document.getElementById('season-select'); sel.innerHTML = ''; data.seasons.forEach(s => { if(s.season_number > 0) sel.innerHTML += `<option value="${s.season_number}">Season ${s.season_number}</option>`; }); if(data.seasons.length > 0) window.loadEpisodes(tvId, sel.value); } catch(e){} }
+        window.loadEpisodes = async function(tvId, sNum) { try { const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}/season/${sNum}?api_key=${API_KEY}`); const data = await res.json(); const sel = document.getElementById('episode-select'); sel.innerHTML = ''; data.episodes.forEach(e => { sel.innerHTML += `<option value="${e.episode_number}">Ep ${e.episode_number}</option>`; }); } catch(e){} }
+        
+        window.playHeroMovie = function(type) { playMovie(homeHeroMovieId); }
+        window.playMovie = function(id) {
+            if(!id) return; currentPlayingMovieId = id; changeServer('autoembed');
+            document.getElementById('player-modal').classList.remove('hidden');
+            addToHistory(id);
+            setTimeout(() => setFocus(document.getElementById('player-back-btn')), 100);
+        }
+        window.changeServer = function(type) {
+            const vf = document.getElementById('video-frame'); const m = globalMovieData[currentPlayingMovieId]; if(!m) return;
+            let s=1,e=1; if(m.is_tv){ s=document.getElementById('season-select').value||1; e=document.getElementById('episode-select').value||1; }
+            if(type==='autoembed') vf.src = m.is_tv ? `https://autoembed.co/tv/tmdb/${m.id}-${s}-${e}` : `https://autoembed.co/movie/tmdb/${m.id}`;
+            else if(type==='vidlink') vf.src = m.is_tv ? `https://vidlink.pro/tv/${m.id}/${s}/${e}` : `https://vidlink.pro/movie/${m.id}`;
+            else if(type==='embedsu') vf.src = m.is_tv ? `https://embed.su/embed/tv/${m.id}/${s}/${e}` : `https://embed.su/embed/movie/${m.id}`;
+        }
+        window.closePlayer = function() { 
+            document.getElementById('player-modal').classList.add('hidden'); document.getElementById('video-frame').src=""; 
+            if(!document.getElementById('details-modal').classList.contains('hidden')) setFocus(document.getElementById('detail-play-btn'));
+        }
+
+        /* PROFILE SETTINGS */
+        window.renderProfileManagement = function() {
+            const container = document.getElementById('profile-management-container'); container.innerHTML = "";
+            window.savedProfiles.forEach(p => {
+                const isAct = p.id === activeProfileId ? "border-[#E50914]" : "border-transparent opacity-60";
+                container.innerHTML += `
+                <div class="focusable flex flex-col items-center gap-3 p-4 rounded-xl cursor-pointer" onclick="handleProfileSelect(${p.id})">
+                    <div class="w-[120px] h-[120px] rounded-xl overflow-hidden border-4 ${isAct}">
+                        <img src="${p.avatarUrl}" class="w-full h-full object-cover">
+                    </div>
+                    <span class="text-white text-lg font-bold">${p.name}</span>
+                </div>`;
+            });
+        }
+    </script>
+</body>
+</html>
